@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { FiX, FiCalendar, FiUser, FiPhone, FiMessageSquare, FiCreditCard, FiCheck, FiAlertCircle, FiInfo } from 'react-icons/fi';
 import { processBookingPayment, completeBookingPayment, handleBookingPaymentFailure } from '../utils/bookingService';
@@ -8,6 +8,8 @@ import { auth, db } from '../firebase';
 import { doc, getDoc} from 'firebase/firestore';
 import CouponSection from './CouponSection';
 import emailService from '../services/emailService';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 // Animations
 const fadeIn = keyframes`
@@ -134,15 +136,45 @@ const gradientShift = keyframes`
   50% { background-position: 100% 50%; }
 `;
 
-// Styled Components
+// NEW LIGHTER COLOR THEME (Replace the previous theme constant)
+const theme = {
+  primary: '#a53d1e', // Lighter coral-orange
+  primaryDark: '#ed4c1b',
+  primaryLight: '#FFAB91',
+  secondary: '#12182f', // Dark gray instead of pure black
+  accent: '#ff6b4d', // Warm amber
+  success: '#4eab53',
+  white: '#FFFFFF',
+  cream: '#FFF8F0', // Light cream background
+  peach: '#FFE4D6', // Light peach
+  lightGray: '#F5F5F5',
+  mediumGray: '#E0E0E0',
+  darkGray: '#546E7A',
+  text: '#263238',
+};
+
+// UPDATED ANIMATIONS - Add the new expand animation
+const expandBox = keyframes`
+  from {
+    transform: scale(1);
+    z-index: 1;
+  }
+  to {
+    transform: scale(1.05);
+    z-index: 10;
+    box-shadow: 0 20px 60px rgba(255, 87, 34, 0.4);
+  }
+`;
+
+// REPLACE ModalOverlay - Lighter overlay
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(51, 153, 204, 0.1) 100%);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(135deg, rgba(38, 50, 56, 0.85) 0%, rgba(255, 112, 67, 0.15) 100%);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,16 +184,17 @@ const ModalOverlay = styled.div`
   animation: ${fadeIn} 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 `;
 
+// REPLACE ModalContainer - Lighter background
 const ModalContainer = styled.div`
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, ${theme.white} 0%, ${theme.cream} 100%);
   border-radius: 24px;
   width: 100%;
-  max-width: 650px;
+  max-width: 900px;
   max-height: 95vh;
   overflow: hidden;
   box-shadow: 
     0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 0 0 1px rgba(255, 112, 67, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   animation: ${scaleIn} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;
@@ -174,77 +207,83 @@ const ModalContainer = styled.div`
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #3399cc, #00b4db, #3399cc);
+    height: 4px;
+    background: linear-gradient(90deg, ${theme.primary}, ${theme.accent}, ${theme.primary});
     background-size: 200% 100%;
     animation: ${shimmer} 2s infinite linear;
   }
 `;
 
+// REPLACE ModalHeader - Softer header
 const ModalHeader = styled.div`
-  padding: 2rem 2rem 1rem;
-  background: linear-gradient(135deg, rgba(51, 153, 204, 0.05) 0%, rgba(0, 180, 219, 0.05) 100%);
+  padding: 1.75rem 2rem 1.25rem;
+  background: linear-gradient(135deg, ${theme.secondary} 0%, #455A64 100%);
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: relative;
-  border-bottom: 1px solid rgba(51, 153, 204, 0.1);
   
   &::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60px;
-    height: 2px;
-    background: linear-gradient(90deg, #3399cc, #00b4db);
-    border-radius: 1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, ${theme.primary}, ${theme.accent});
   }
+  
   @media (max-width: 480px) {
-    padding: 1.5rem 1.25rem 1rem; /* Reduced padding */
+    padding: 1.5rem 1.25rem 1rem;
   }
 `;
 
+// REPLACE ModalTitle
 const ModalTitle = styled.h2`
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #2c5aa0 0%, #3399cc 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: ${theme.white};
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: -0.025em;
   animation: ${slideInFromLeft} 0.6s ease-out;
+  
+  span {
+    background: linear-gradient(135deg, ${theme.primaryLight} 0%, ${theme.accent} 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 
   @media (max-width: 480px) {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
   }
 `;
 
+
+
+
+// REPLACE CloseButton
 const CloseButton = styled.button`
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid rgba(51, 153, 204, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
   font-size: 1.2rem;
-  color: #64748b;
-  width: 48px;
-  height: 48px;
+  color: ${theme.white};
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   animation: ${slideInFromRight} 0.6s ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
   &:hover {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-    color: white;
-    border-color: #ff6b6b;
+    background: ${theme.primary};
+    border-color: ${theme.primary};
     transform: scale(1.1) rotate(90deg);
-    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 8px 25px rgba(255, 112, 67, 0.4);
   }
   
   &:active {
@@ -252,39 +291,35 @@ const CloseButton = styled.button`
   }
 `;
 
+// REPLACE ModalBody
 const ModalBody = styled.div`
   padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.75rem;
   overflow-y: auto;
   flex: 1;
+  background: linear-gradient(180deg, ${theme.cream} 0%, ${theme.white} 100%);
   
-  /* Custom scrollbar */
   &::-webkit-scrollbar {
     width: 6px;
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(51, 153, 204, 0.1);
+    background: ${theme.peach};
     border-radius: 3px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #3399cc, #00b4db);
+    background: linear-gradient(135deg, ${theme.primary}, ${theme.accent});
     border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #2388bb, #0095b6);
   }
 
   @media (max-width: 480px) {
-    padding: 1.25rem; /* Reduced padding */
+    padding: 1.25rem;
     gap: 1.5rem;
   }
 `;
-
 const TrekInfo = styled.div`
   display: flex;
   align-items: center;
@@ -334,6 +369,391 @@ const TrekImage = styled.img`
   }
 `;
 
+
+// Add this with your other styled components
+// Place it AFTER the existing SelectedDateDisplay component
+
+const PopupDateDisplay = styled.div`
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  border: 2px solid #FF9800;
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  animation: ${bounceIn} 0.4s ease-out;
+  
+  .date-label {
+    font-size: 0.8rem;
+    color: #E65100;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  
+  .date-value {
+    font-size: 1.1rem;
+    color: #BF360C;
+    font-weight: 700;
+  }
+
+   @media (max-width: 480px) {
+    padding: 0.85rem;
+    margin-bottom: 1rem;
+    
+    .date-label {
+      font-size: 0.7rem;
+    }
+    
+    .date-value {
+      font-size: 0.95rem;
+    }
+  }
+`;
+
+// Add these styled components with your other styled components
+
+const UnavailableDateOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: ${fadeIn} 0.3s ease-out;
+
+  @media (max-width: 480px) {
+    padding: 0;
+    align-items: flex-end;
+  }
+`;
+
+const UnavailableDatePopup = styled.div`
+  background: ${theme.white};
+  border-radius: 20px;
+  width: 100%;
+  max-width: 450px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: ${bounceIn} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    @media (max-width: 480px) {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 20px 20px 0 0;
+    animation: ${slideInUp} 0.4s ease-out;
+  }
+`;
+
+const PopupHeader = styled.div`
+  background: linear-gradient(135deg, #E53935 0%, #C62828 100%);
+  padding: 1.5rem;
+  text-align: center;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 12px solid #C62828;
+  }
+
+   @media (max-width: 480px) {
+    padding: 1.25rem 1rem;
+  }
+`;
+
+const PopupIconContainer = styled.div`
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  animation: ${pulse} 2s ease-in-out infinite;
+  
+  svg {
+    font-size: 1.8rem;
+    color: white;
+  }
+
+  @media (max-width: 480px) {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 0.75rem;
+    
+    svg {
+      font-size: 1.4rem;
+    }
+  }
+`;
+
+const PopupTitle = styled.h3`
+  margin: 0;
+  color: white;
+  font-size: 1.3rem;
+  font-weight: 700;
+
+    @media (max-width: 480px) {
+    font-size: 1.1rem;
+  }
+`;
+
+const PopupBody = styled.div`
+  padding: 2rem 1.5rem 1.5rem;
+
+  overflow-y: auto;
+  flex: 1;
+  
+  @media (max-width: 480px) {
+    padding: 1.25rem 1rem;
+  }
+`;
+
+const SelectedDateDisplay = styled.div`
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  border: 2px solid #FF9800;
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  
+  .date-label {
+    font-size: 0.8rem;
+    color: #E65100;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  
+  .date-value {
+    font-size: 1.1rem;
+    color: #BF360C;
+    font-weight: 700;
+  }
+`;
+
+const PopupMessage = styled.p`
+  color: ${theme.text};
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+  text-align: center;
+
+  @media (max-width: 480px) {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+`;
+
+const AvailableDatesSection = styled.div`
+  margin-top: 1rem;
+
+   @media (max-width: 480px) {
+    margin-top: 0.75rem;
+  }
+`;
+
+const AvailableDatesTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: ${theme.primary};
+  margin-bottom: 1rem;
+  
+  svg {
+    color: ${theme.success};
+  }
+
+  @media (max-width: 480px) {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const AvailableDatesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: ${theme.cream};
+    border-radius: 2px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${theme.primaryLight};
+    border-radius: 2px;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    max-height: 150px;
+  }
+`;
+
+const AvailableDateButton = styled.button`
+  padding: 0.75rem 1rem;
+  background: ${theme.white};
+  border: 2px solid ${theme.mediumGray};
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${theme.text};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  
+  .day {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: ${theme.primary};
+  }
+  
+  .full-date {
+    display: block;
+    font-size: 0.8rem;
+    color: ${theme.darkGray};
+    margin-top: 2px;
+  }
+  
+  &:hover {
+    background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%);
+    border-color: ${theme.primary};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 112, 67, 0.3);
+    
+    .day, .full-date {
+      color: white;
+    }
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+      @media (max-width: 480px) {
+    padding: 0.65rem 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    .day {
+      font-size: 0.9rem;
+    }
+    
+    .full-date {
+      margin-top: 0;
+      font-size: 0.8rem;
+    }
+  }
+`;
+
+const PopupFooter = styled.div`
+  padding: 1rem 1.5rem 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  
+   @media (max-width: 480px) {
+    flex-direction: column-reverse;
+    padding: 1rem;
+    gap: 0.5rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+`;
+
+const PopupButton = styled.button`
+  flex: 1;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  @media (max-width: 480px) {
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+    width: 100%;
+  }
+`;
+
+const ClosePopupButton = styled(PopupButton)`
+  background: ${theme.lightGray};
+  border: 2px solid ${theme.mediumGray};
+  color: ${theme.darkGray};
+  
+  &:hover {
+    background: ${theme.mediumGray};
+    color: ${theme.text};
+  }
+`;
+
+const ChooseAnotherButton = styled(PopupButton)`
+  background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 112, 67, 0.3);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 112, 67, 0.4);
+  }
+`;
+
+const NoAvailableDatesMessage = styled.div`
+  background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
+  border: 2px solid #EF5350;
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  color: #C62828;
+  font-weight: 600;
+  
+  svg {
+    display: block;
+    margin: 0 auto 0.5rem;
+    font-size: 1.5rem;
+  }
+     @media (max-width: 480px) {
+    padding: 1rem;
+    font-size: 0.9rem;
+    
+    svg {
+      font-size: 1.25rem;
+    }
+  }
+`;
+
 const TrekDetails = styled.div`
   flex: 1;
 `;
@@ -380,146 +800,80 @@ const FormGroup = styled.div`
 
 const Label = styled.label`
   font-weight: 600;
-  font-size: 1rem;
-  color: #2c5aa0;
+  font-size: 0.95rem;
+  color: ${theme.secondary};
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  letter-spacing: -0.01em;
 
   svg {
-    color: #3399cc;
-    font-size: 1.1rem;
+    color: ${theme.primary};
+    font-size: 1rem;
   }
 `;
 
+// REPLACE Input
 const Input = styled.input`
-  padding: 1rem 1.25rem;
-  border: 2px solid rgba(51, 153, 204, 0.2);
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 2px solid ${theme.mediumGray};
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 500;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: ${theme.white};
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: ${theme.text};
   
   &::placeholder {
-    color: #94a3b8;
+    color: #9E9E9E;
     font-weight: 400;
   }
 
   &:focus {
-    border-color: #3399cc;
-    background: #ffffff;
+    border-color: ${theme.primary};
     box-shadow: 
-      0 0 0 4px rgba(51, 153, 204, 0.1),
-      0 4px 12px rgba(51, 153, 204, 0.15);
-    transform: translateY(-2px);
+      0 0 0 3px rgba(255, 112, 67, 0.12),
+      0 2px 8px rgba(255, 112, 67, 0.15);
   }
   
-  &:hover:not(:focus) {
-    border-color: rgba(51, 153, 204, 0.4);
-    transform: translateY(-1px);
+  &:hover:not(:focus):not(:disabled) {
+    border-color: ${theme.primaryLight};
+  }
+  
+  &:disabled {
+    background: ${theme.lightGray};
+    color: ${theme.darkGray};
   }
 `;
 
+// Apply same styling to Select, DateInput, and Textarea
+// REPLACE Select
 const Select = styled.select`
-  padding: 1rem 1.25rem;
-  border: 2px solid rgba(51, 153, 204, 0.2);
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 2px solid ${theme.mediumGray};
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 500;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: ${theme.white};
   cursor: pointer;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: ${theme.text};
 
   &:focus {
-    border-color: #3399cc;
-    background: #ffffff;
+    border-color: ${theme.primary};
     box-shadow: 
-      0 0 0 4px rgba(51, 153, 204, 0.1),
-      0 4px 12px rgba(51, 153, 204, 0.15);
-    transform: translateY(-2px);
-  }
-  
-  &:hover:not(:focus) {
-    border-color: rgba(51, 153, 204, 0.4);
-    transform: translateY(-1px);
+      0 0 0 3px rgba(255, 112, 67, 0.12),
+      0 2px 8px rgba(255, 112, 67, 0.15);
   }
 `;
-
-const DateInput = styled.input`
-  padding: 1rem 1.25rem;
-  border: 2px solid rgba(51, 153, 204, 0.2);
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-
-  &:focus {
-    border-color: #3399cc;
-    background: #ffffff;
-    box-shadow: 
-      0 0 0 4px rgba(51, 153, 204, 0.1),
-      0 4px 12px rgba(51, 153, 204, 0.15);
-    transform: translateY(-2px);
-  }
-  
-  &:hover:not(:focus) {
-    border-color: rgba(51, 153, 204, 0.4);
-    transform: translateY(-1px);
-  }
-
-  /* Style for disabled dates in calendar */
-  &::-webkit-calendar-picker-indicator {
-    cursor: pointer;
-    opacity: 0.8;
-  }
-`;
-
-const Textarea = styled.textarea`
-  padding: 1rem 1.25rem;
-  border: 2px solid rgba(51, 153, 204, 0.2);
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+const DateInput = styled(Input).attrs({ type: 'date' })``;
+const Textarea = styled(Input).attrs({ as: 'textarea' })`
   resize: vertical;
   min-height: 100px;
-  
-  &::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-
-  &:focus {
-    border-color: #3399cc;
-    background: #ffffff;
-    box-shadow: 
-      0 0 0 4px rgba(51, 153, 204, 0.1),
-      0 4px 12px rgba(51, 153, 204, 0.15);
-    transform: translateY(-2px);
-  }
-  
-  &:hover:not(:focus) {
-    border-color: rgba(51, 153, 204, 0.4);
-    transform: translateY(-1px);
-  }
 `;
 
 const FieldHelpText = styled.div`
@@ -737,28 +1091,28 @@ const NoAvailableDates = styled.div`
   font-style: italic;
 `;
 
-const SelectedDateDisplay = styled.div`
-  margin-top: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(51, 153, 204, 0.08) 0%, rgba(0, 180, 219, 0.08) 100%);
-  border: 2px solid rgba(51, 153, 204, 0.2);
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #2c5aa0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  animation: ${bounceIn} 0.5s ease-out;
+// const SelectedDateDisplay = styled.div`
+//   margin-top: 12px;
+//   padding: 12px 16px;
+//   background: linear-gradient(135deg, rgba(51, 153, 204, 0.08) 0%, rgba(0, 180, 219, 0.08) 100%);
+//   border: 2px solid rgba(51, 153, 204, 0.2);
+//   border-radius: 12px;
+//   font-size: 0.9rem;
+//   font-weight: 600;
+//   color: #2c5aa0;
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   animation: ${bounceIn} 0.5s ease-out;
   
-  svg {
-    color: #3399cc;
-  }
-`;
+//   svg {
+//     color: #3399cc;
+//   }
+// `;
 
 const PriceSummary = styled.div`
   margin-top: 1.5rem;
-  background: linear-gradient(135deg, rgba(51, 153, 204, 0.05) 0%, rgba(0, 180, 219, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 180, 219, 0.05) 100%);
   padding: 1.75rem;
   border-radius: 16px;
   border: 2px solid rgba(51, 153, 204, 0.15);
@@ -786,7 +1140,7 @@ const PriceItem = styled.div`
   padding: 0.75rem 0;
   font-size: 1.1rem;
   font-weight: 500;
-  color: #2c5aa0;
+  color: #060606;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   
   &:not(:last-child) {
@@ -797,47 +1151,35 @@ const PriceItem = styled.div`
 const PriceTotal = styled(PriceItem)`
   margin-top: 0.75rem;
   padding-top: 1.25rem;
-  border-top: 2px solid rgba(51, 153, 204, 0.2);
+  border-top: 2px solid rgba(241, 8, 8, 0.2);
   font-weight: 700;
   font-size: 1.4rem;
-  color: #2c5aa0;
-  background: linear-gradient(135deg, rgba(51, 153, 204, 0.08) 0%, rgba(0, 180, 219, 0.08) 100%);
+  color: #09090a;
+  background: linear-gradient(135deg, rgba(207, 152, 57, 0.08) 0%, rgba(208, 104, 78, 0.08) 100%);
   margin: 0.75rem -1.75rem -1.75rem;
   padding: 1.25rem 1.75rem;
   border-radius: 0 0 14px 14px;
   
   span:last-child {
-    background: linear-gradient(135deg, #3399cc 0%, #00b4db 100%);
+    background: linear-gradient(135deg, #d6410b 0%, #ac452f 100%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 `;
 
+// REPLACE ModalFooter
 const ModalFooter = styled.div`
-  padding: 1.75rem 2rem;
-  background: linear-gradient(135deg, rgba(51, 153, 204, 0.02) 0%, rgba(0, 180, 219, 0.02) 100%);
-  border-top: 2px solid rgba(51, 153, 204, 0.1);
+  padding: 1.5rem 2rem;
+  background: ${theme.white};
+  border-top: 2px solid ${theme.peach};
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60px;
-    height: 2px;
-    background: linear-gradient(90deg, #3399cc, #00b4db);
-    border-radius: 1px;
-  }
 
   @media (max-width: 480px) {
-    flex-direction: column-reverse; /* Put primary button on top */
+    flex-direction: column-reverse;
     padding: 1.25rem;
     gap: 0.75rem;
   }
@@ -880,74 +1222,59 @@ const Button = styled.button`
   }
 `;
 
+// REPLACE CancelButton
 const CancelButton = styled(Button)`
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border: 2px solid #cbd5e1;
-  color: #475569;
+  background: ${theme.white};
+  border: 2px solid ${theme.mediumGray};
+  color: ${theme.darkGray};
   min-width: 120px;
 
   &:hover {
-    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
-    border-color: #94a3b8;
-    color: #334155;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(71, 85, 105, 0.15);
+    background: ${theme.lightGray};
+    border-color: ${theme.darkGray};
+    color: ${theme.text};
   }
-  
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(71, 85, 105, 0.1);
+
+  @media (max-width: 480px) {
+    width: 100%;
   }
 `;
 
+// REPLACE ProceedButton
 const ProceedButton = styled(Button)`
-  background: linear-gradient(135deg, #3399cc 0%, #00b4db 100%);
-  border: 2px solid #3399cc;
+  background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%);
+  border: none;
   color: white;
   min-width: 180px;
-  box-shadow: 0 4px 15px rgba(51, 153, 204, 0.3);
+  box-shadow: 0 4px 15px rgba(255, 112, 67, 0.35);
 
   &:hover {
-    background: linear-gradient(135deg, #2388bb 0%, #0095b6 100%);
-    border-color: #2388bb;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(51, 153, 204, 0.4);
+    background: linear-gradient(135deg, ${theme.primaryDark} 0%, #E64A19 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 112, 67, 0.45);
   }
 
   &:disabled {
-    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-    border-color: #94a3b8;
-    cursor: not-allowed;
-    transform: none;
+    background: ${theme.mediumGray};
     box-shadow: none;
-    
-    &:hover {
-      transform: none;
-      box-shadow: none;
-    }
   }
-  
-  &:active:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(51, 153, 204, 0.3);
+
+  @media (max-width: 480px) {
+    width: 100%;
   }
 `;
-
+// REPLACE PaymentButton
 const PaymentButton = styled(ProceedButton)`
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-color: #10b981;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, #db392d 0%, #3b443b 100%);
+  border-color: #d9550e;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
 
   &:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    border-color: #059669;
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-  }
-  
-  &:active:not(:disabled) {
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+    box-shadow: 0 8px 25px rgba(76, 175, 80, 0.6);
   }
 `;
+
 
 const ErrorMessage = styled.div`
   color: #dc2626;
@@ -1024,21 +1351,22 @@ const Step = styled.div`
   gap: 0.5rem;
   font-size: 0.9rem;
   font-weight: 600;
-  color: ${props => props.active ? '#3399cc' : '#94a3b8'};
+  color: ${props => props.active ? theme.primary : theme.darkGray};
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 `;
 
+// Step indicator updates
 const StepNumber = styled.div`
   width: 32px;
   height: 32px;
   border-radius: 50%;
   background: ${props => props.active 
-    ? 'linear-gradient(135deg, #3399cc 0%, #00b4db 100%)' 
+    ? `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%)` 
     : props.completed 
-      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-      : '#e2e8f0'
+      ? `linear-gradient(135deg, ${theme.success} 0%, #43A047 100%)`
+      : theme.lightGray
   };
-  color: ${props => (props.active || props.completed) ? 'white' : '#64748b'};
+  color: ${props => (props.active || props.completed) ? 'white' : theme.darkGray};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1046,17 +1374,16 @@ const StepNumber = styled.div`
   font-size: 0.85rem;
   transition: all 0.3s ease;
   box-shadow: ${props => props.active 
-    ? '0 4px 12px rgba(51, 153, 204, 0.3)' 
+    ? '0 4px 12px rgba(255, 112, 67, 0.35)' 
     : 'none'
   };
 `;
-
 const StepConnector = styled.div`
   width: 40px;
   height: 2px;
   background: ${props => props.completed 
-    ? 'linear-gradient(90deg, #10b981, #059669)' 
-    : '#e2e8f0'
+    ? `linear-gradient(90deg, ${theme.success}, #43A047)` 
+    : theme.mediumGray
   };
   transition: all 0.3s ease;
 `;
@@ -1210,18 +1537,934 @@ const ConfettiContainer = styled.div`
   overflow: hidden;
 `;
 
+// ✅ NEW: Professional styled components for participant sections
+const PrimaryBookerSection = styled.div`
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.08) 0%, rgba(255, 152, 0, 0.05) 100%);
+  padding: 1.75rem;
+  border-radius: 20px;
+  border: 2px solid ${theme.primary};
+  margin-top: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  animation: ${fadeIn} 0.5s ease-out;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, ${theme.primary}, ${theme.accent}, ${theme.primary});
+    background-size: 200% 100%;
+    animation: ${shimmer} 2s infinite linear;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
+  }
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(51, 153, 204, 0.1);
+`;
+
+// REPLACE SectionIcon
+const SectionIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: ${props => props.variant === 'green' 
+    ? 'linear-gradient(135deg, #4CAF50 0%, #388E3C 100%)' 
+    : props.variant === 'black'
+      ? `linear-gradient(135deg, ${theme.secondary} 0%, ${theme.darkGray} 100%)`
+      : `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%)`};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  box-shadow: ${props => props.variant === 'green'
+    ? '0 4px 12px rgba(76, 175, 80, 0.3)'
+    : props.variant === 'black'
+      ? '0 4px 12px rgba(0, 0, 0, 0.3)'
+      : '0 4px 12px rgba(255, 87, 34, 0.4)'};
+`;
+
+const SectionTitle = styled.div`
+  flex: 1;
+`;
+
+const SectionTitleText = styled.h3`
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: ${props => props.color || '#2c5aa0'};
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.01em;
+`;
+
+const SectionSubtitle = styled.p`
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+`;
+
+const ParticipantsSection = styled(PrimaryBookerSection)`
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(66, 66, 66, 0.03) 100%);
+  border-color: ${theme.secondary};
+  
+  &::before {
+    background: linear-gradient(90deg, ${theme.secondary}, ${theme.darkGray}, ${theme.secondary});
+  }
+`;
+
+const ParticipantCard = styled.div`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 16px;
+  margin-bottom: ${props => props.isLast ? '0' : '1rem'};
+  border: 2px solid ${props => props.isPrimary 
+    ? 'rgba(51, 153, 204, 0.2)' 
+    : 'rgba(226, 232, 240, 0.8)'};
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: ${fadeIn} 0.4s ease-out ${props => props.delay || '0s'} both;
+
+  ${props => props.isPrimary && css`
+    box-shadow: 0 4px 15px rgba(51, 153, 204, 0.1);
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #3399cc, #00b4db);
+    }
+  `}
+
+  &:hover {
+    border-color: ${props => props.isPrimary 
+      ? 'rgba(51, 153, 204, 0.35)' 
+      : 'rgba(51, 153, 204, 0.2)'};
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
+  }
+`;
+
+const ParticipantHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+`;
+
+const ParticipantNumber = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const ParticipantAvatar = styled.div`
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: ${props => props.isPrimary 
+    ? 'linear-gradient(135deg, #3399cc 0%, #00b4db 100%)' 
+    : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)'};
+  color: ${props => props.isPrimary ? 'white' : '#64748b'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+`;
+
+const ParticipantLabel = styled.span`
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+`;
+
+const PrimaryBadge = styled.span`
+  font-size: 0.7rem;
+  background: linear-gradient(135deg, #3399cc, #00b4db);
+  color: white;
+  padding: 0.3rem 0.85rem;
+  border-radius: 20px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(51, 153, 204, 0.3);
+`;
+// REPLACE FieldRow
+const FieldRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+`;
+
+const TrustBadges = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    gap: 1rem;
+  }
+`;
+
+const TrustBadge = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+
+  svg {
+    color: #10b981;
+    font-size: 0.9rem;
+  }
+`;
+
+// Add these styled components with your other popup components
+
+const AvailableMonthsSection = styled.div`
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px dashed ${theme.mediumGray};
+
+  @media (max-width: 480px) {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+`;
+
+const AvailableMonthsTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: ${theme.secondary};
+  margin-bottom: 1rem;
+  
+  svg {
+    color: ${theme.primary};
+  }
+    @media (max-width: 480px) {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const MonthsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  
+  @media (max-width: 400px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+    @media (max-width: 350px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+`;
+
+const MonthBadge = styled.div`
+  padding: 0.6rem 0.75rem;
+  background: ${props => props.isCurrentMonth 
+    ? `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%)`
+    : `linear-gradient(135deg, ${theme.cream} 0%, ${theme.peach} 100%)`
+  };
+  border: 2px solid ${props => props.isCurrentMonth ? theme.primary : theme.primaryLight};
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${props => props.isCurrentMonth ? 'white' : theme.text};
+  transition: all 0.2s ease;
+  
+  ${props => props.isCurrentMonth && `
+    box-shadow: 0 4px 12px rgba(255, 112, 67, 0.3);
+  `}
+  
+  .month-name {
+    display: block;
+    font-weight: 700;
+  }
+  
+  .month-status {
+    display: block;
+    font-size: 0.7rem;
+    margin-top: 2px;
+    opacity: 0.8;
+  }
+     @media (max-width: 480px) {
+    padding: 0.5rem 0.4rem;
+    
+    .month-name {
+      font-size: 0.8rem;
+    }
+    
+    .month-status {
+      font-size: 0.6rem;
+    }
+  }
+
+  
+`;
+
+const MonthsHelpText = styled.div`
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.08) 0%, rgba(33, 150, 243, 0.04) 100%);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #1565C0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  
+  svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+    @media (max-width: 480px) {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.8rem;
+    margin-top: 0.75rem;
+  }
+`;
+
+const ContactUsButton = styled.button`
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.9rem 1.25rem;
+  background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(25, 118, 210, 0.4);
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+  }
+`;
+
+const ParticipantCounter = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+  background: rgba(16, 185, 129, 0.08);
+  padding: 0.4rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+`;
+
+// REPLACE ErrorSpan
+const ErrorSpan = styled.span`
+  color: #E53935;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+
+  &::before {
+    content: '!';
+    background: #E53935;
+    color: white;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+`;
+
+const BookingSummaryCard = styled.div`
+  background: linear-gradient(135deg, hsla(0, 0%, 98%, 0.04) 0%, rgba(194, 27, 21, 0.04) 100%);
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 2px solid rgba(9, 10, 10, 0.12);
+  margin-bottom: 1rem;
+`;
+
+const SummaryHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #383a3ccb;
+`;
+
+const SummaryTitle = styled.h3`
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0d0d0e;
+`;
+
+const SummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const SummaryItem = styled.div`
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 500;
+
+  strong {
+    color: #070707;
+    font-weight: 600;
+  }
+`;
+
+const ParticipantChip = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background: ${props => props.isPrimary 
+    ? 'linear-gradient(135deg, rgba(192, 110, 104, 0.1), rgba(179, 131, 89, 0.1))' 
+    : '#f1f5f9'};
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: ${props => props.isPrimary ? '#000000' : '#475569'};
+  border: 1px solid ${props => props.isPrimary 
+    ? 'rgba(51, 153, 204, 0.2)' 
+    : 'rgba(226, 232, 240, 0.8)'};
+  margin: 0.25rem 0.25rem 0.25rem 0;
+`;
+
+const CouponSuccessDiv = styled.div`
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  animation: ${fadeIn} 1s ease-out 1s both;
+`;
+
+const SecurePaymentBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(5, 150, 105, 0.04) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #059669;
+  margin-bottom: 1rem;
+  animation: ${fadeIn} 0.5s ease-out;
+
+  svg {
+    font-size: 1rem;
+  }
+`;
+// NEW: First Row Layout (Image + Date/Participants)
+const FirstRow = styled.div`
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  animation: ${slideInFromLeft} 0.6s ease-out;
+  align-items: start;   /* 🔥 IMPORTANT FIX */
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+`;
+
+
+const TrekImageContainer = styled.div`
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+   align-self: start;
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+    pointer-events: none;
+  }
+`;
+
+const TrekImageLarge = styled.img`
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+  
+  ${TrekImageContainer}:hover & {
+    transform: scale(1.05);
+  }
+
+  @media (max-width: 768px) {
+    height: 180px;
+  }
+`;
+
+
+const TrekImageOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  z-index: 2;
+  color: white;
+  
+  h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+`;
+
+const RightColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+// NEW: Interactive Info Card with built-in dropdown
+const InteractiveCard = styled.div`
+  background: ${props => props.isOpen 
+    ? `linear-gradient(135deg, ${theme.white} 0%, ${theme.peach} 100%)`
+    : `linear-gradient(135deg, ${theme.white} 0%, ${theme.cream} 100%)`};
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 2px solid ${props => props.isOpen ? theme.primary : theme.peach};
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: ${props => props.isOpen 
+    ? `0 8px 25px rgba(255, 112, 67, 0.2)` 
+    : `0 2px 8px rgba(0, 0, 0, 0.06)`};
+  
+  &:hover {
+    border-color: ${theme.primary};
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 112, 67, 0.15);
+  }
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const CardLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${theme.darkGray};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  
+  svg {
+    color: ${theme.primary};
+    font-size: 1rem;
+  }
+`;
+
+const CardValue = styled.div`
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: ${theme.text};
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const CardArrow = styled.div`
+  color: ${theme.primary};
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+  transform: ${props => props.isOpen ? 'rotate(180deg)' : 'rotate(0deg)'};
+`;
+
+// Dropdown that appears inside the card
+const CardDropdown = styled.div`
+  max-height: ${props => props.isOpen ? '400px' : '0'};
+  opacity: ${props => props.isOpen ? '1' : '0'};
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: ${props => props.isOpen ? '1rem' : '0'};
+  padding-top: ${props => props.isOpen ? '1rem' : '0'};
+  border-top: ${props => props.isOpen ? `1px solid ${theme.peach}` : 'none'};
+`;
+
+// Date Grid inside card
+const MiniDateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: ${theme.cream};
+    border-radius: 2px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${theme.primaryLight};
+    border-radius: 2px;
+  }
+`;
+
+const MiniDateOption = styled.button`
+  padding: 0.75rem;
+  background: ${props => props.selected 
+    ? `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%)` 
+    : theme.white};
+  color: ${props => props.selected ? 'white' : theme.text};
+  border: 2px solid ${props => props.selected ? theme.primary : theme.mediumGray};
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  
+  &:hover {
+    background: ${props => props.selected 
+      ? `linear-gradient(135deg, ${theme.primaryDark} 0%, #E64A19 100%)` 
+      : theme.peach};
+    border-color: ${theme.primary};
+    transform: scale(1.02);
+  }
+  
+  span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0.8;
+    margin-top: 2px;
+  }
+`;
+
+// Participant count options
+const ParticipantGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+`;
+
+const ParticipantOption = styled.button`
+  padding: 0.75rem 0.5rem;
+  background: ${props => props.selected 
+    ? `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%)` 
+    : theme.white};
+  color: ${props => props.selected ? 'white' : theme.text};
+  border: 2px solid ${props => props.selected ? theme.primary : theme.mediumGray};
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.selected 
+      ? `linear-gradient(135deg, ${theme.primaryDark} 0%, #E64A19 100%)` 
+      : theme.peach};
+    border-color: ${theme.primary};
+    transform: scale(1.05);
+  }
+`;
+
+// Status badge for selected items
+const SelectedBadge = styled.span`
+  background: linear-gradient(135deg, ${theme.primary}, ${theme.accent});
+  color: white;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+`;
+
+const DateParticipantBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.5rem;
+`;
+
+const InfoCard = styled.div`
+  background: linear-gradient(135deg, ${theme.secondary} 0%, #2a2a2a 100%);
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 2px solid ${theme.primary};
+  color: ${theme.white};
+  box-shadow: 0 8px 20px rgba(255, 87, 34, 0.3);
+  
+  h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.1rem;
+    color: ${theme.accent};
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: ${theme.white};
+  }
+`;
+
+
+// REPLACE DetailBox - Lighter version
+const DetailBox = styled.div`
+  background: ${props => props.isExpanded 
+    ? `linear-gradient(135deg, ${theme.peach} 0%, ${theme.white} 100%)`
+    : theme.white};
+  padding: ${props => props.isExpanded ? '1.5rem' : '1.25rem'};
+  border-radius: 14px;
+  border: 2px solid ${props => props.isExpanded ? theme.primary : theme.mediumGray};
+  margin-bottom: 0.75rem;
+  cursor: ${props => props.isExpanded ? 'default' : 'pointer'};
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: ${props => props.isExpanded 
+    ? `0 10px 30px rgba(255, 112, 67, 0.15)` 
+    : `0 2px 6px rgba(0, 0, 0, 0.04)`};
+  
+  ${props => props.isExpanded && css`
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, ${theme.primary}, ${theme.accent});
+      border-radius: 14px 14px 0 0;
+    }
+  `}
+  
+  &:hover:not([data-expanded="true"]) {
+    border-color: ${theme.primaryLight};
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 112, 67, 0.12);
+  }
+  
+  ${props => props.isDisabled && css`
+    opacity: 0.5;
+    pointer-events: none;
+  `}
+`;
+
+// REPLACE DetailBoxHeader
+const DetailBoxHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: ${props => props.isExpanded ? '1.25rem' : '0'};
+`;
+
+// REPLACE DetailBoxTitle
+const DetailBoxTitle = styled.h3`
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: ${theme.text};
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  
+  svg {
+    color: ${theme.primary};
+  }
+`;
+
+// Status indicator
+const StatusDot = styled.span`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${props => props.completed ? theme.success : theme.mediumGray};
+  margin-left: 0.5rem;
+`;
+
+
+// REPLACE DetailBoxContent
+const DetailBoxContent = styled.div`
+  max-height: ${props => props.isExpanded ? '800px' : '0'};
+  opacity: ${props => props.isExpanded ? '1' : '0'};
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+`;
+
+// REPLACE DoneButton - Softer style
+const DoneButton = styled.button`
+  background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%);
+  color: white;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(255, 112, 67, 0.3);
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 112, 67, 0.4);
+  }
+  
+  &:disabled {
+    background: ${theme.mediumGray};
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+`;
+
+const NavigationButtons = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+`;
+
+const PreviousButton = styled(Button)`
+  background: transparent;
+  border: 2px solid ${theme.primary};
+  color: ${theme.primary};
+  
+  &:hover {
+    background: ${theme.primary};
+    color: ${theme.white};
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
 // Main Component
 const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    startDate: '',
-    participants: 1,
+ // ✅ NEW: Separate form data from participant data
+const [formData, setFormData] = useState({
+  startDate: '',
+  totalParticipants: 1,  // ✅ CHANGED from 'participants'
+  specialRequests: ''
+});
+
+// ✅ NEW: Primary booker info (auto-filled from Firebase Auth)
+const [primaryBooker, setPrimaryBooker] = useState({
+  name: '',
+  email: '',
+  contactNumber: ''
+});
+
+// ✅ NEW: Array of participants
+const [participants, setParticipants] = useState([
+  {
+    participantId: 'p1',
     name: '',
     email: '',
-    contactNumber: '',
-    specialRequests: ''
-  });
+    age: '',
+    emergencyContact: '',
+    isPrimaryBooker: true
+  }
+]);
   const [errors, setErrors] = useState({});
   const [bookingId, setBookingId] = useState(null);
   const [paymentError, setPaymentError] = useState(null);
@@ -1238,6 +2481,179 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
   // Custom date picker states
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [selectedDateFormatted, setSelectedDateFormatted] = useState('');
+  
+
+  // Add these state variables after your existing useState declarations
+const [showUnavailableDatePopup, setShowUnavailableDatePopup] = useState(false);
+const [selectedUnavailableDate, setSelectedUnavailableDate] = useState(null);
+
+// ADD these new state variables (after existing useState declarations)
+const [isDateCardOpen, setIsDateCardOpen] = useState(false);
+const [isParticipantCardOpen, setIsParticipantCardOpen] = useState(false);
+const [currentExpandedBox, setCurrentExpandedBox] = useState(null);
+const [completedBoxes, setCompletedBoxes] = useState(new Set());
+
+// ADD helper functions
+const handleDateCardToggle = (e) => {
+  e.stopPropagation();
+  setIsDateCardOpen(!isDateCardOpen);
+  setIsParticipantCardOpen(false); // Close other card
+};
+
+const handleParticipantCardToggle = (e) => {
+  e.stopPropagation();
+  setIsParticipantCardOpen(!isParticipantCardOpen);
+  setIsDateCardOpen(false); // Close other card
+};
+
+// Replace your existing handleDateSelect function with this:
+
+const handleDateSelect = (date) => {
+  if (!date) return;
+  
+  // Convert Date object to YYYY-MM-DD string
+  const dateStr = date instanceof Date 
+    ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    : date;
+  
+  // Check if date is available
+  if (!isDateAvailable(dateStr)) {
+    // Show unavailable date popup
+    setSelectedUnavailableDate(date);
+    setShowUnavailableDatePopup(true);
+    return;
+  }
+  
+  // Date is available - proceed normally
+  setFormData(prev => ({ ...prev, startDate: dateStr }));
+  setSelectedDateFormatted(formatDateForDisplay(dateStr));
+  setIsDateCardOpen(false);
+  
+  if (errors.startDate) {
+    setErrors(prev => ({ ...prev, startDate: undefined }));
+  }
+};
+
+// Handler for selecting an available date from the popup
+const handleSelectAvailableDate = (dateStr) => {
+  setFormData(prev => ({ ...prev, startDate: dateStr }));
+  setSelectedDateFormatted(formatDateForDisplay(dateStr));
+  setShowUnavailableDatePopup(false);
+  setSelectedUnavailableDate(null);
+  setIsDateCardOpen(false);
+  
+  if (errors.startDate) {
+    setErrors(prev => ({ ...prev, startDate: undefined }));
+  }
+};
+
+// Handler to close popup and re-open date picker
+const handleChooseAnotherDate = () => {
+  setShowUnavailableDatePopup(false);
+  setSelectedUnavailableDate(null);
+  setIsDateCardOpen(true);
+};
+
+// Handler to just close the popup
+const handleCloseUnavailablePopup = () => {
+  setShowUnavailableDatePopup(false);
+  setSelectedUnavailableDate(null);
+};
+
+// Get future available dates for the popup
+const getFutureAvailableDates = () => {
+  if (!trek.availableDates || !Array.isArray(trek.availableDates)) {
+    return [];
+  }
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return trek.availableDates
+    .filter(dateStr => {
+      const date = new Date(dateStr);
+      return date >= today;
+    })
+    .sort((a, b) => new Date(a) - new Date(b))
+    .slice(0, 6); // Show max 6 dates in popup
+};
+
+// Format date for popup display
+const formatDateForPopup = (dateStr) => {
+  const date = new Date(dateStr);
+  return {
+    day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+    full: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  };
+};
+
+const handleParticipantSelect = (count) => {
+  const currentParticipants = [...participants];
+  
+  if (count > currentParticipants.length) {
+    const newParticipants = [];
+    for (let i = currentParticipants.length; i < count; i++) {
+      newParticipants.push({
+        participantId: `p${i + 1}`,
+        name: '',
+        email: '',
+        age: '',
+        emergencyContact: '',
+        isPrimaryBooker: false
+      });
+    }
+    setParticipants([...currentParticipants, ...newParticipants]);
+  } else if (count < currentParticipants.length) {
+    setParticipants(currentParticipants.slice(0, count));
+  }
+  
+  setFormData(prev => ({ ...prev, totalParticipants: count }));
+  setIsParticipantCardOpen(false);
+};
+
+const handleBoxClick = (boxId) => {
+  if (currentExpandedBox === boxId) return;
+  setCurrentExpandedBox(boxId);
+};
+
+const handleDoneClick = (boxId) => {
+  setCompletedBoxes(prev => new Set([...prev, boxId]));
+  
+  if (boxId === 'primary') {
+    setCurrentExpandedBox('participant-0');
+  } else {
+    const currentIndex = parseInt(boxId.split('-')[1]);
+    if (currentIndex < participants.length - 1) {
+      setCurrentExpandedBox(`participant-${currentIndex + 1}`);
+    } else {
+      setCurrentExpandedBox(null);
+    }
+  }
+};
+
+const handlePreviousBox = () => {
+  if (!currentExpandedBox || currentExpandedBox === 'primary') return;
+  
+  if (currentExpandedBox === 'participant-0') {
+    setCurrentExpandedBox('primary');
+  } else {
+    const currentIndex = parseInt(currentExpandedBox.split('-')[1]);
+    setCurrentExpandedBox(`participant-${currentIndex - 1}`);
+  }
+};
+
+const isBoxValid = (boxId) => {
+  if (boxId === 'primary') {
+    return primaryBooker.name && primaryBooker.email && primaryBooker.contactNumber;
+  }
+  const index = parseInt(boxId.split('-')[1]);
+  return participants[index]?.name?.trim() !== '';
+};
+
+
+
+
+
 
   // Format date for display
   const formatDateForDisplay = (dateString) => {
@@ -1280,6 +2696,13 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
     }
     return [];
   };
+
+
+
+
+
+
+
 
   // Get the number of days from the start of the current month to create a minimum date
   const today = new Date();
@@ -1356,46 +2779,56 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
     return 'All year';
   };
   useEffect(() => {
-    const getCurrentUser = async () => {
-      if (auth.currentUser) {
-        // Also try to get user profile data from Firestore
-        let userProfileData = {};
-        try {
-          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-          if (userDoc.exists()) {
-            userProfileData = userDoc.data();
-          }
-        } catch (error) {
-          console.warn('Could not fetch user profile for booking modal:', error);
+  const getCurrentUser = async () => {
+    if (auth.currentUser) {
+      let userProfileData = {};
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          userProfileData = userDoc.data();
         }
-        
-        setFormData(prevData => ({
-          ...prevData, 
-          name: auth.currentUser.displayName || userProfileData.name || userProfileData.firstName || '',
-          email: auth.currentUser.email || userProfileData.email || '',
-          contactNumber: userProfileData.phone || userProfileData.phoneNumber || userProfileData.contactNumber || auth.currentUser.phoneNumber || '',
-        }));
+      } catch (error) {
+        console.warn('Could not fetch user profile:', error);
       }
-    };
-    
-    if (isOpen) {
-      getCurrentUser();
       
-      // Reset coupon state when modal opens
-      setActiveCoupon(null);
-      setDiscountAmount(0);
+      // ✅ NEW: Set primary booker info
+      const bookerInfo = {
+        name: auth.currentUser.displayName || userProfileData.name || userProfileData.firstName || '',
+        email: auth.currentUser.email || userProfileData.email || '',
+        contactNumber: userProfileData.phone || userProfileData.phoneNumber || userProfileData.contactNumber || auth.currentUser.phoneNumber || '',
+      };
       
-      // Set original amount based on trek price
-      const basePrice = trek?.numericPrice || parseInt(trek?.price?.replace(/[^0-9]/g, '')) || 0;
-      setOriginalAmount(basePrice);
+      setPrimaryBooker(bookerInfo);
       
-      // Load Razorpay script when modal opens
-      loadRazorpayScript().catch(err => {
-        console.error("Failed to load Razorpay script:", err);
-        setPaymentError("Failed to load payment gateway. Please try again.");
-      });
+      // ✅ NEW: Set first participant as primary booker
+      setParticipants([
+        {
+          participantId: 'p1',
+          name: bookerInfo.name,
+          email: bookerInfo.email,
+          age: userProfileData.age || '',
+          emergencyContact: bookerInfo.contactNumber,
+          isPrimaryBooker: true
+        }
+      ]);
     }
-  }, [isOpen, trek]);
+  };
+  
+  if (isOpen) {
+    getCurrentUser();
+    
+    setActiveCoupon(null);
+    setDiscountAmount(0);
+    
+    const basePrice = trek?.numericPrice || parseInt(trek?.price?.replace(/[^0-9]/g, '')) || 0;
+    setOriginalAmount(basePrice);
+    
+    loadRazorpayScript().catch(err => {
+      console.error("Failed to load Razorpay script:", err);
+      setPaymentError("Failed to load payment gateway. Please try again.");
+    });
+  }
+}, [isOpen, trek]);
 
   // Additional useEffect to handle date input restrictions and click outside
   useEffect(() => {
@@ -1440,48 +2873,58 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
     }
   }, [isOpen, availableDatesForCalendar, isDateAvailable]);
   const validateForm = () => {
-    const newErrors = {};
+  const newErrors = {};
 
-    if (!formData.startDate) {
-      newErrors.startDate = "Start date is required";
-    } else if (!isDateAvailable(formData.startDate)) {
-      if (trek.availableDates && Array.isArray(trek.availableDates) && trek.availableDates.length > 0) {
-        const futureDates = trek.availableDates.filter(dateStr => {
-          const date = new Date(dateStr);
-          return date >= today;
-        });
-        
-        if (futureDates.length === 0) {
-          newErrors.startDate = "No dates are currently available for this trek.";
-        } else {
-          newErrors.startDate = "This date is not available for booking. Please select from the available dates shown below.";
-        }
-      } else if (trek.availableMonths && Array.isArray(trek.availableMonths) && trek.availableMonths.length > 0) {
-        newErrors.startDate = `This trek is only available during: ${getAvailabilityDisplay()}`;
+  if (!formData.startDate) {
+    newErrors.startDate = "Start date is required";
+  } else if (!isDateAvailable(formData.startDate)) {
+    if (trek.availableDates && Array.isArray(trek.availableDates) && trek.availableDates.length > 0) {
+      const futureDates = trek.availableDates.filter(dateStr => {
+        const date = new Date(dateStr);
+        return date >= today;
+      });
+      
+      if (futureDates.length === 0) {
+        newErrors.startDate = "No dates are currently available for this trek.";
       } else {
-        newErrors.startDate = "Selected date is not available for booking.";
+        newErrors.startDate = "This date is not available for booking. Please select from the available dates.";
       }
+    } else {
+      newErrors.startDate = "Selected date is not available for booking.";
+    }
+  }
+  
+  // ✅ NEW: Validate primary booker
+  if (!primaryBooker.name) {
+    newErrors.primaryBooker_name = "Your name is required";
+  }
+  
+  if (!primaryBooker.email) {
+    newErrors.primaryBooker_email = "Your email is required";
+  } else if (!/\S+@\S+\.\S+/.test(primaryBooker.email)) {
+    newErrors.primaryBooker_email = "Email is invalid";
+  }
+  
+  if (!primaryBooker.contactNumber) {
+    newErrors.primaryBooker_contactNumber = "Contact number is required";
+  } else if (!/^\d{10}$/.test(primaryBooker.contactNumber)) {
+    newErrors.primaryBooker_contactNumber = "Contact number must be 10 digits";
+  }
+  
+  // ✅ NEW: Validate all participants
+  participants.forEach((participant, index) => {
+    if (!participant.name || participant.name.trim() === '') {
+      newErrors[`participant_${index}_name`] = `Participant ${index + 1} name is required`;
     }
     
-    if (!formData.name) {
-      newErrors.name = "Name is required";
+    if (participant.email && !/\S+@\S+\.\S+/.test(participant.email)) {
+      newErrors[`participant_${index}_email`] = `Invalid email for Participant ${index + 1}`;
     }
-    
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
-    }
-    
-    if (!formData.contactNumber) {
-      newErrors.contactNumber = "Contact number is required";
-    } else if (!/^\d{10}$/.test(formData.contactNumber)) {
-      newErrors.contactNumber = "Contact number must be 10 digits";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  });
+  
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1532,7 +2975,130 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
     }
   };
 
+
+
+  // Add these helper functions with your other functions
+
+// Get available months for display
+const getAvailableMonths = () => {
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
   
+  if (trek.availableMonths && Array.isArray(trek.availableMonths) && trek.availableMonths.length > 0) {
+    const currentMonth = new Date().getMonth();
+    
+    return trek.availableMonths
+      .sort((a, b) => a - b)
+      .map(monthIndex => ({
+        index: monthIndex,
+        name: monthNames[monthIndex],
+        shortName: monthNames[monthIndex].substring(0, 3),
+        isCurrentMonth: monthIndex === currentMonth,
+        isFutureMonth: monthIndex >= currentMonth
+      }));
+  }
+  
+  return [];
+};
+
+// Check if trek has any availability info
+const hasAvailabilityInfo = () => {
+  const hasDates = trek.availableDates && Array.isArray(trek.availableDates) && trek.availableDates.length > 0;
+  const hasMonths = trek.availableMonths && Array.isArray(trek.availableMonths) && trek.availableMonths.length > 0;
+  return hasDates || hasMonths;
+};
+
+// Get next available month name
+const getNextAvailableMonth = () => {
+  const months = getAvailableMonths();
+  const currentMonth = new Date().getMonth();
+  
+  // Find next future month
+  const futureMonth = months.find(m => m.index >= currentMonth);
+  if (futureMonth) {
+    return futureMonth.name;
+  }
+  
+  // If no future month this year, return first month (next year)
+  if (months.length > 0) {
+    return `${months[0].name} (next year)`;
+  }
+  
+  return null;
+};
+
+
+
+
+
+
+  // ✅ NEW: Handle total participants change
+const handleParticipantCountChange = (e) => {
+  const count = parseInt(e.target.value);
+  setFormData(prev => ({ ...prev, totalParticipants: count }));
+  
+  const currentParticipants = [...participants];
+  
+  if (count > currentParticipants.length) {
+    const newParticipants = [];
+    for (let i = currentParticipants.length; i < count; i++) {
+      newParticipants.push({
+        participantId: `p${i + 1}`,
+        name: '',
+        email: '',
+        age: '',
+        emergencyContact: '',
+        isPrimaryBooker: false
+      });
+    }
+    setParticipants([...currentParticipants, ...newParticipants]);
+  } else if (count < currentParticipants.length) {
+    setParticipants(currentParticipants.slice(0, count));
+  }
+};
+
+// ✅ NEW: Handle individual participant field change
+const handleParticipantChange = (index, field, value) => {
+  const updatedParticipants = [...participants];
+  updatedParticipants[index] = {
+    ...updatedParticipants[index],
+    [field]: value
+  };
+  setParticipants(updatedParticipants);
+  
+  if (errors[`participant_${index}_${field}`]) {
+    setErrors(prev => ({
+      ...prev,
+      [`participant_${index}_${field}`]: undefined
+    }));
+  }
+};
+
+// ✅ NEW: Handle primary booker info change
+const handlePrimaryBookerChange = (field, value) => {
+  setPrimaryBooker(prev => ({
+    ...prev,
+    [field]: value
+  }));
+  
+  if (participants[0]?.isPrimaryBooker) {
+    const updatedParticipants = [...participants];
+    updatedParticipants[0] = {
+      ...updatedParticipants[0],
+      [field]: value
+    };
+    setParticipants(updatedParticipants);
+  }
+  
+  if (errors[field]) {
+    setErrors(prev => ({
+      ...prev,
+      [field]: undefined
+    }));
+  }
+};
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1542,15 +3108,14 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
     }
   };
   const calculateTotalPrice = useCallback(() => {
-    const basePrice = trek?.numericPrice || parseInt(trek?.price?.replace(/[^0-9]/g, '')) || 0;
-    const subtotal = basePrice * formData.participants;
-    
-    // If there's an active coupon, apply the discount
-    if (activeCoupon) {
-      return Math.max(subtotal - discountAmount, 0);
-    }
-    return subtotal;
-  }, [trek, formData, activeCoupon, discountAmount]);
+  const basePrice = trek?.numericPrice || parseInt(trek?.price?.replace(/[^0-9]/g, '')) || 0;
+  const subtotal = basePrice * formData.totalParticipants;  // ✅ CHANGED
+  
+  if (activeCoupon) {
+    return Math.max(subtotal - discountAmount, 0);
+  }
+  return subtotal;
+}, [trek, formData.totalParticipants, activeCoupon, discountAmount]);  // ✅ CHANGED dependency
   
   // Handle coupon application
   const handleApplyCoupon = (coupon) => {
@@ -1562,31 +3127,57 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
       setActiveCoupon(null);
       setDiscountAmount(0);
     }
-  };  const handlePaymentProcess = async () => {
-    try {
-      setIsProcessingPayment(true);
-      setPaymentError(null);
+  }; 
+   const handlePaymentProcess = async () => {
+  try {
+    setIsProcessingPayment(true);
+    setPaymentError(null);
+    
+    const total = calculateTotalPrice();
+    const baseAmount = trek?.numericPrice * formData.totalParticipants || total;  // ✅ CHANGED
+    
+    // ✅ NEW: Prepare complete booking data
+    const bookingData = {
+      // Primary booker info
+      primaryBooker: {
+        uid: auth.currentUser?.uid || null,
+        ...primaryBooker
+      },
       
-      // Save phone number to user profile if provided
-      // (This could be enhanced in future to save to user profile)
+      // All participants
+      participants: participants,
       
-      // Calculate final amounts
-      const total = calculateTotalPrice();
-      const baseAmount = trek?.numericPrice * formData.participants || total;
+      // Trek details
+      trekId: trek.id,
+      trekName: trek.name,
+      startDate: formData.startDate,
       
-      const paymentResult = await processBookingPayment(trek, {
-        ...formData,
-        amount: total,
-        // Include coupon information if available
-        coupon: activeCoupon ? {
-          id: activeCoupon.id,
-          code: activeCoupon.code,
-          discount: discountAmount,
-          discountType: activeCoupon.discountType,
-          originalAmount: baseAmount,
-          finalAmount: total
-        } : null
-      });
+      // Pricing
+      pricePerPerson: trek?.numericPrice,
+      totalParticipants: formData.totalParticipants,
+      subtotal: baseAmount,
+      discount: discountAmount,
+      totalAmount: total,
+      
+      // Coupon info
+      coupon: activeCoupon ? {
+        id: activeCoupon.id,
+        code: activeCoupon.code,
+        discount: discountAmount,
+        discountType: activeCoupon.discountType,
+        originalAmount: baseAmount,
+        finalAmount: total
+      } : null,
+      
+      // Additional info
+      specialRequests: formData.specialRequests || '',
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log('🔍 Booking data being sent:', bookingData);
+    console.log('👥 Participants:', participants);
+    
+    const paymentResult = await processBookingPayment(trek, bookingData);  // ✅ CHANGED
       
       if (paymentResult.success) {
         // Store bookingId in component state
@@ -1775,13 +3366,25 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
           // Reset form state
           setStep(1);
           setFormData({
-            startDate: '',
-            participants: 1,
-            name: '',
-            email: '',
-            contactNumber: '',
-            specialRequests: ''
-          });
+  startDate: '',
+  totalParticipants: 1,
+  specialRequests: ''
+});
+setPrimaryBooker({
+  name: '',
+  email: '',
+  contactNumber: ''
+});
+setParticipants([
+  {
+    participantId: 'p1',
+    name: '',
+    email: '',
+    age: '',
+    emergencyContact: '',
+    isPrimaryBooker: true
+  }
+]);
           setPaymentSuccess(false);
           setShowSuccessAnimation(false);
           setBookingId(null);
@@ -1940,23 +3543,163 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
                 Your adventure awaits! We're preparing your booking details...
               </SuccessSubtitle>
               
-              {activeCoupon && (
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '1rem', 
-                  background: 'rgba(255, 255, 255, 0.2)', 
-                  borderRadius: '10px',
-                  animation: `${fadeIn} 1s ease-out 1s both`
-                }}>
+                            {activeCoupon && (
+                <CouponSuccessDiv>
                   <strong>Coupon Applied: {activeCoupon.code}</strong>
                   <br />
                   You saved ₹{discountAmount.toFixed(2)}!
-                </div>
+                </CouponSuccessDiv>
               )}
             </EnhancedSuccessMessage>
           </ProcessingContent>
         </ProcessingOverlay>
       )}
+        {/* Processing Overlay - existing code */}
+    {isProcessingBooking && (
+      <ProcessingOverlay>
+        {/* ... existing code ... */}
+      </ProcessingOverlay>
+    )}
+    
+    {/* Success Animation Overlay - existing code */}
+    {showSuccessAnimation && (
+      <ProcessingOverlay>
+        {/* ... existing code ... */}
+      </ProcessingOverlay>
+    )}
+    
+    {/* 🆕 UNAVAILABLE DATE POPUP */}
+{showUnavailableDatePopup && (
+  <UnavailableDateOverlay onClick={handleCloseUnavailablePopup}>
+    <UnavailableDatePopup onClick={(e) => e.stopPropagation()}>
+      <PopupHeader>
+        <PopupIconContainer>
+          <FiCalendar />
+        </PopupIconContainer>
+        <PopupTitle>Date Not Available</PopupTitle>
+      </PopupHeader>
+      
+      <PopupBody>
+        {selectedUnavailableDate && (
+          <PopupDateDisplay>
+            <div className="date-label">You selected</div>
+            <div className="date-value">
+              {selectedUnavailableDate instanceof Date 
+                ? selectedUnavailableDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })
+                : formatDateForDisplay(selectedUnavailableDate)
+              }
+            </div>
+          </PopupDateDisplay>
+        )}
+        
+        <PopupMessage>
+          Sorry, this date is not available for <strong>{trek?.name}</strong>. 
+          {getFutureAvailableDates().length > 0 
+            ? ' Please choose from the available dates below.'
+            : getAvailableMonths().length > 0 
+              ? ' This trek is only available during specific months.'
+              : ' Please contact us for availability.'
+          }
+        </PopupMessage>
+        
+        {/* AVAILABLE DATES SECTION */}
+        {getFutureAvailableDates().length > 0 && (
+          <AvailableDatesSection>
+            <AvailableDatesTitle>
+              <FiCheck />
+              Available Dates
+            </AvailableDatesTitle>
+            
+            <AvailableDatesGrid>
+              {getFutureAvailableDates().map((dateStr) => {
+                const formatted = formatDateForPopup(dateStr);
+                return (
+                  <AvailableDateButton
+                    key={dateStr}
+                    onClick={() => handleSelectAvailableDate(dateStr)}
+                  >
+                    <span className="day">{formatted.day}</span>
+                    <span className="full-date">{formatted.full}</span>
+                  </AvailableDateButton>
+                );
+              })}
+            </AvailableDatesGrid>
+          </AvailableDatesSection>
+        )}
+        
+        {/* AVAILABLE MONTHS SECTION - Shows when no specific dates */}
+        {getFutureAvailableDates().length === 0 && getAvailableMonths().length > 0 && (
+          <AvailableMonthsSection>
+            <AvailableMonthsTitle>
+              <FiCalendar />
+              Available Months for This Trek
+            </AvailableMonthsTitle>
+            
+            <MonthsGrid>
+              {getAvailableMonths().map((month) => (
+                <MonthBadge 
+                  key={month.index} 
+                  isCurrentMonth={month.isCurrentMonth}
+                >
+                  <span className="month-name">{month.shortName}</span>
+                  <span className="month-status">
+                    {month.isCurrentMonth 
+                      ? '● Now' 
+                      : month.isFutureMonth 
+                        ? 'Available' 
+                        : 'Next Year'
+                    }
+                  </span>
+                </MonthBadge>
+              ))}
+            </MonthsGrid>
+            
+            <MonthsHelpText>
+              <FiInfo />
+              <span>
+                Specific dates for these months will be announced soon. 
+                {getNextAvailableMonth() && (
+                  <> Next availability: <strong>{getNextAvailableMonth()}</strong></>
+                )}
+              </span>
+            </MonthsHelpText>
+            
+            
+          </AvailableMonthsSection>
+        )}
+        
+        {/* NO AVAILABILITY AT ALL */}
+        {getFutureAvailableDates().length === 0 && getAvailableMonths().length === 0 && (
+          <NoAvailableDatesMessage>
+            <FiAlertCircle />
+            <div>
+              <strong>No availability information</strong>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', fontWeight: 'normal' }}>
+                Please contact us to inquire about available dates for this trek.
+              </p>
+            </div>
+          </NoAvailableDatesMessage>
+        )}
+      </PopupBody>
+      
+      <PopupFooter>
+        <ClosePopupButton onClick={handleCloseUnavailablePopup}>
+          Cancel
+        </ClosePopupButton>
+        <ChooseAnotherButton onClick={handleChooseAnotherDate}>
+          <FiCalendar />
+          Choose Another Date
+        </ChooseAnotherButton>
+      </PopupFooter>
+    </UnavailableDatePopup>
+  </UnavailableDateOverlay>
+)}
+    
       
       <ModalOverlay>
         <ModalContainer>
@@ -1986,236 +3729,411 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
           </StepIndicator>
 
           {/* Trek Information */}
-          <TrekInfo>
+          {/* <TrekInfo>
             <TrekImage src={trek?.image} alt={trek?.name} />
             <TrekDetails>
               <TrekName>{trek?.name}</TrekName>
               <TrekLocation>{trek?.location}</TrekLocation>
             </TrekDetails>
           </TrekInfo>
+           */}
+ {/* Booking Form - Step 1 */}
+
+{step === 1 && (
+  <Form onSubmit={handleSubmit}>
+    {/* FIRST ROW: Image + Date/Participants Cards */}
+    <FirstRow>
+      {/* Left: Trek Image */}
+      <TrekImageContainer>
+        <TrekImageLarge src={trek?.image} alt={trek?.name} />
+        <TrekImageOverlay>
+          <h3>{trek?.name}</h3>
+          <p>📍 {trek?.location}</p>
+        </TrekImageOverlay>
+      </TrekImageContainer>
+      
+      {/* Right: Date and Participant Cards */}
+      <RightColumn>
+        {/* Date Selection Card */}
+        <InteractiveCard 
+          isOpen={isDateCardOpen} 
+          onClick={handleDateCardToggle}
+        >
+          <CardHeader>
+            <CardLabel>
+              <FiCalendar />
+              Trek Date
+            </CardLabel>
+            {formData.startDate && <SelectedBadge>Selected</SelectedBadge>}
+          </CardHeader>
+          <CardValue>
+            {formData.startDate 
+              ? formatDateForDisplay(formData.startDate)
+              : 'Click to select date'
+            }
+            <CardArrow isOpen={isDateCardOpen}></CardArrow>
+          </CardValue>
           
-          {/* Booking Form - Step 1 */}
-          {step === 1 && (
-            <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>
-                  <FiCalendar />
-                  Start Date
-                </Label>
-                
-                {/* Custom Date Picker for Available Dates */}
-                {availableDatesForCalendar.length > 0 ? (
-                  <CustomDatePickerContainer className="date-picker-container">
-                    <DatePickerInput 
-                      className={isDatePickerOpen ? 'focused' : ''}
-                      onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                    >
-                      <DatePickerPlaceholder hasValue={!!formData.startDate}>
-                        {formData.startDate ? selectedDateFormatted || formatDateForDisplay(formData.startDate) : 'Click to select an available date'}
-                      </DatePickerPlaceholder>
-                      <CalendarIcon />
-                    </DatePickerInput>
-                    
-                    {isDatePickerOpen && (
-                      <DatePickerDropdown>
-                        <DatePickerHeader>
-                          <DatePickerTitle>
-                            <FiCalendar />
-                            Select Booking Date
-                          </DatePickerTitle>
-                          <DatePickerSubtitle>
-                            {availableDatesForCalendar.length} dates available for this trek
-                          </DatePickerSubtitle>
-                        </DatePickerHeader>
-                        
-                        <DateGrid>
-                          {availableDatesForCalendar.length > 0 ? (
-                            availableDatesForCalendar.map(dateStr => {
-                              const date = new Date(dateStr);
-                              const displayDate = date.toLocaleDateString('en-US', { 
-                                weekday: 'short',
-                                month: 'short', 
-                                day: 'numeric'
-                              });
-                              const fullDate = date.toLocaleDateString('en-US', { 
-                                month: 'long', 
-                                day: 'numeric',
-                                year: 'numeric'
-                              });
-                              
-                              return (
-                                <DateOption
-                                  key={dateStr}
-                                  type="button"
-                                  selected={formData.startDate === dateStr}
-                                  onClick={() => handleCustomDateSelect(dateStr)}
-                                >
-                                  <DateOptionMain>{displayDate}</DateOptionMain>
-                                  <DateOptionSub>{fullDate}</DateOptionSub>
-                                </DateOption>
-                              );
-                            })
-                          ) : (
-                            <NoAvailableDates>
-                              No dates currently available for booking
-                            </NoAvailableDates>
-                          )}
-                        </DateGrid>
-                      </DatePickerDropdown>
-                    )}
-                  </CustomDatePickerContainer>
-                ) : (
-                  // Fallback to regular date input if no specific dates
-                  <DateInput 
-                    type="date" 
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    min={minBookingDate}
-                  />
-                )}
-                
-                {errors.startDate && <span style={{ color: 'red', fontSize: '0.9rem' }}>{errors.startDate}</span>}
-                
-                {formData.startDate && availableDatesForCalendar.length > 0 && (
-                  <SelectedDateDisplay>
-                    <FiCheck />
-                    Selected: {selectedDateFormatted || formatDateForDisplay(formData.startDate)}
-                  </SelectedDateDisplay>
-                )}
-                
-                <FieldHelpText>
-                  <FiInfo size={14} style={{ marginRight: '6px' }} />
-                  {availableDatesForCalendar.length > 0 ? (
-                    <>
-                      <strong>Only specific dates are available for booking:</strong> {getAvailabilityDisplay()}
-                      <br />
-                      <span style={{ fontSize: '0.85em', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                        💡 Use the date picker above to see all available options
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <strong>Available dates:</strong> {getAvailabilityDisplay()}
-                    </>
-                  )}
-                </FieldHelpText>
-              </FormGroup>
-              
-              <FormGroup>
-                <Label>
-                  <FiUser />
-                  Number of Participants
-                </Label>
-                <Select 
-                  name="participants"
-                  value={formData.participants}
-                  onChange={handleChange}
+          <CardDropdown isOpen={isDateCardOpen} onClick={e => e.stopPropagation()}>
+  <DatePicker
+    selected={formData.startDate ? new Date(formData.startDate) : null}
+    onChange={(date) => handleDateSelect(date)}
+    inline
+    minDate={new Date()} // Prevent past dates
+  />
+</CardDropdown>
+        </InteractiveCard>
+        
+        {errors.startDate && (
+          <ErrorSpan style={{ marginTop: '-0.5rem', marginBottom: '0.5rem' }}>
+            {errors.startDate}
+          </ErrorSpan>
+        )}
+        
+        {/* Participants Selection Card */}
+        <InteractiveCard 
+          isOpen={isParticipantCardOpen} 
+          onClick={handleParticipantCardToggle}
+        >
+          <CardHeader>
+            <CardLabel>
+              <FiUser />
+              Participants
+            </CardLabel>
+            <SelectedBadge>{formData.totalParticipants} Selected</SelectedBadge>
+          </CardHeader>
+          <CardValue>
+            {formData.totalParticipants} {formData.totalParticipants === 1 ? 'Person' : 'People'}
+            <CardArrow isOpen={isParticipantCardOpen}></CardArrow>
+          </CardValue>
+          
+          <CardDropdown isOpen={isParticipantCardOpen} onClick={e => e.stopPropagation()}>
+            <ParticipantGrid>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                <ParticipantOption
+                  key={num}
+                  type="button"
+                  selected={formData.totalParticipants === num}
+                  onClick={() => handleParticipantSelect(num)}
                 >
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </Select>
-              </FormGroup>
-              
-              <FormGroup>
-                <Label>
-                  <FiUser />
-                  Full Name
-                </Label>
-                <Input 
-                  type="text" 
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Enter your full name"
-                />
-                {errors.name && <span style={{ color: 'red', fontSize: '0.9rem' }}>{errors.name}</span>}
-              </FormGroup>
-              
-              <FormGroup>
-                <Label>
-                  <FiUser />
-                  Email
-                </Label>
-                <Input 
-                  type="email" 
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter your email"
-                />
-                {errors.email && <span style={{ color: 'red', fontSize: '0.9rem' }}>{errors.email}</span>}
-              </FormGroup>
-              
-              <FormGroup>
-                <Label>
-                  <FiPhone />
-                  Contact Number
-                </Label>
-                <Input 
-                  type="tel" 
-                  name="contactNumber"
-                  value={formData.contactNumber}
-                  onChange={handleChange}
-                  placeholder="10-digit mobile number"
-                />
-                {errors.contactNumber && <span style={{ color: 'red', fontSize: '0.9rem' }}>{errors.contactNumber}</span>}
-              </FormGroup>
-              
-              <FormGroup>
-                <Label>
-                  <FiMessageSquare />
-                  Special Requests (Optional)
-                </Label>
-                <Textarea 
-                  name="specialRequests"
-                  value={formData.specialRequests}
-                  onChange={handleChange}
-                  placeholder="Any special requirements or requests"
-                />
-              </FormGroup>
-            </Form>
-          )}
+                  {num}
+                </ParticipantOption>
+              ))}
+            </ParticipantGrid>
+          </CardDropdown>
+        </InteractiveCard>
+      </RightColumn>
+    </FirstRow>
+
+    {/* PRIMARY BOOKER BOX */}
+    <DetailBox
+      isExpanded={currentExpandedBox === 'primary'}
+      data-expanded={currentExpandedBox === 'primary'}
+      onClick={() => currentExpandedBox !== 'primary' && handleBoxClick('primary')}
+    >
+      <DetailBoxHeader isExpanded={currentExpandedBox === 'primary'}>
+        <DetailBoxTitle>
+          <FiUser />
+          Your Details (Primary Booker)
+          <StatusDot completed={completedBoxes.has('primary')} />
+        </DetailBoxTitle>
+        {currentExpandedBox !== 'primary' && (
+          <span style={{ fontSize: '0.85rem', color: theme.darkGray }}>
+            {completedBoxes.has('primary') ? '✓ Completed' : 'Click to fill'}
+          </span>
+        )}
+      </DetailBoxHeader>
+      
+      <DetailBoxContent isExpanded={currentExpandedBox === 'primary'}>
+        <FormGroup style={{ marginTop: 0 }}>
+          <Label>Full Name *</Label>
+          <Input 
+            type="text" 
+            value={primaryBooker.name}
+            onChange={(e) => handlePrimaryBookerChange('name', e.target.value)}
+            placeholder="Enter your full name"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {errors.primaryBooker_name && <ErrorSpan>{errors.primaryBooker_name}</ErrorSpan>}
+        </FormGroup>
+        
+        <FieldRow>
+          <FormGroup>
+            <Label>Email *</Label>
+            <Input 
+              type="email" 
+              value={primaryBooker.email}
+              onChange={(e) => handlePrimaryBookerChange('email', e.target.value)}
+              placeholder="your.email@example.com"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {errors.primaryBooker_email && <ErrorSpan>{errors.primaryBooker_email}</ErrorSpan>}
+          </FormGroup>
           
-          {/* Payment Section - Step 2 */}
-          {step === 2 && (
-            <>              {/* Coupon Section */}
-              <CouponSection 
-                orderTotal={trek?.numericPrice * formData.participants} 
-                onApplyCoupon={handleApplyCoupon}
-                theme={{ 
-                  mainColor: '#3399cc', 
-                  hoverColor: '#2388bb',
-                  gradientLight: 'linear-gradient(135deg, rgba(51, 153, 204, 0.1), rgba(33, 122, 168, 0.1))',
-                  textColor: '#2c5aa0',
-                  inputBackground: '#ffffff',
-                  inputBorder: 'rgba(51, 153, 204, 0.2)',
-                  inputText: '#2c5aa0',
-                  placeholderColor: '#94a3b8'
-                }}
+          <FormGroup>
+            <Label>Contact Number *</Label>
+            <Input 
+              type="tel" 
+              value={primaryBooker.contactNumber}
+              onChange={(e) => handlePrimaryBookerChange('contactNumber', e.target.value)}
+              placeholder="10-digit number"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {errors.primaryBooker_contactNumber && <ErrorSpan>{errors.primaryBooker_contactNumber}</ErrorSpan>}
+          </FormGroup>
+        </FieldRow>
+        
+        <DoneButton 
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isBoxValid('primary')) handleDoneClick('primary');
+          }}
+          disabled={!isBoxValid('primary')}
+        >
+          <FiCheck />
+          Done - Continue
+        </DoneButton>
+      </DetailBoxContent>
+    </DetailBox>
+
+    {/* PARTICIPANT BOXES */}
+    {participants.map((participant, index) => (
+      <DetailBox
+        key={participant.participantId}
+        isExpanded={currentExpandedBox === `participant-${index}`}
+        data-expanded={currentExpandedBox === `participant-${index}`}
+        isDisabled={!completedBoxes.has('primary')}
+        onClick={() => {
+          if (completedBoxes.has('primary') && currentExpandedBox !== `participant-${index}`) {
+            handleBoxClick(`participant-${index}`);
+          }
+        }}
+      >
+        <DetailBoxHeader isExpanded={currentExpandedBox === `participant-${index}`}>
+          <DetailBoxTitle>
+            <FiUser />
+            Participant {index + 1} {participant.isPrimaryBooker && '(You)'}
+            <StatusDot completed={completedBoxes.has(`participant-${index}`)} />
+          </DetailBoxTitle>
+          {currentExpandedBox !== `participant-${index}` && (
+            <span style={{ fontSize: '0.85rem', color: theme.darkGray }}>
+              {completedBoxes.has(`participant-${index}`) ? '✓ Completed' : 'Click to fill'}
+            </span>
+          )}
+        </DetailBoxHeader>
+        
+        <DetailBoxContent isExpanded={currentExpandedBox === `participant-${index}`}>
+          <FieldRow style={{ marginTop: 0 }}>
+            <FormGroup>
+              <Label>Full Name *</Label>
+              <Input 
+                type="text" 
+                value={participant.name}
+                onChange={(e) => handleParticipantChange(index, 'name', e.target.value)}
+                placeholder="Full name"
+                disabled={participant.isPrimaryBooker}
+                onClick={(e) => e.stopPropagation()}
               />
+              {errors[`participant_${index}_name`] && (
+                <ErrorSpan>{errors[`participant_${index}_name`]}</ErrorSpan>
+              )}
+            </FormGroup>
+            
+            <FormGroup>
+              <Label>Email {!participant.isPrimaryBooker && '(Optional)'}</Label>
+              <Input 
+                type="email" 
+                value={participant.email}
+                onChange={(e) => handleParticipantChange(index, 'email', e.target.value)}
+                placeholder="Email"
+                disabled={participant.isPrimaryBooker}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </FormGroup>
+          </FieldRow>
+          
+          <FieldRow>
+            <FormGroup>
+              <Label>Age (Optional)</Label>
+              <Input 
+                type="number" 
+                value={participant.age}
+                onChange={(e) => handleParticipantChange(index, 'age', e.target.value)}
+                placeholder="Age"
+                min="1"
+                max="100"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </FormGroup>
+            
+            <FormGroup>
+              <Label>Emergency Contact (Optional)</Label>
+              <Input 
+                type="tel" 
+                value={participant.emergencyContact}
+                onChange={(e) => handleParticipantChange(index, 'emergencyContact', e.target.value)}
+                placeholder="Phone number"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </FormGroup>
+          </FieldRow>
+          
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+            {index > 0 && (
+              <DoneButton 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePreviousBox();
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  color: theme.primary, 
+                  border: `2px solid ${theme.primary}`,
+                  boxShadow: 'none'
+                }}
+              >
+                ← Previous
+              </DoneButton>
+            )}
+            
+            <DoneButton 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isBoxValid(`participant-${index}`)) {
+                  handleDoneClick(`participant-${index}`);
+                }
+              }}
+              disabled={!isBoxValid(`participant-${index}`)}
+            >
+              <FiCheck />
+              {index === participants.length - 1 ? 'Done' : 'Next Participant'}
+            </DoneButton>
+          </div>
+        </DetailBoxContent>
+      </DetailBox>
+    ))}
+
+    {/* Special Requests */}
+    <FormGroup>
+      <Label>
+        <FiMessageSquare />
+        Special Requests (Optional)
+      </Label>
+      <Textarea 
+        name="specialRequests"
+        value={formData.specialRequests}
+        onChange={handleChange}
+        placeholder="Any dietary requirements, accessibility needs, or other requests..."
+        style={{ minHeight: '80px' }}
+      />
+    </FormGroup>
+  </Form>
+)}    
+                   {/* Payment Section - Step 2 */}
+          {step === 2 && (
+            <>
+              {/* Secure Payment Banner */}
+              <SecurePaymentBanner>
+                <FiCheck />
+                🔒 Secure Payment powered by Razorpay
+              </SecurePaymentBanner>
+
+              {/* Booking Summary */}
+              <BookingSummaryCard>
+                <SummaryHeader>
+                  <SectionIcon>
+                    <FiInfo />
+                  </SectionIcon>
+                  <SummaryTitle>Booking Summary</SummaryTitle>
+                </SummaryHeader>
                 
-              <PriceSummary>
+                <SummaryGrid>
+                  <SummaryItem>
+                    <strong>Trek:</strong> {trek?.name}
+                  </SummaryItem>
+                  <SummaryItem>
+                    <strong>Date:</strong> {formatDateForDisplay(formData.startDate)}
+                  </SummaryItem>
+                  <SummaryItem>
+                    <strong>Participants:</strong> {formData.totalParticipants} person(s)
+                  </SummaryItem>
+                  <SummaryItem>
+                    <strong>Price/Person:</strong> ₹{trek?.numericPrice}
+                  </SummaryItem>
+                </SummaryGrid>
+                
+                {/* Participant Names */}
+                <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(51, 153, 204, 0.1)' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#020202', marginBottom: '0.5rem' }}>
+                    Participants:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0' }}>
+                    {participants.map((p, i) => (
+                      <ParticipantChip key={i} isPrimary={p.isPrimaryBooker}>
+                        {p.name || `Participant ${i + 1}`}
+                        {p.isPrimaryBooker && ' ✓'}
+                      </ParticipantChip>
+                    ))}
+                  </div>
+                </div>
+              </BookingSummaryCard>
+
+             {/* Coupon Section */}
+<CouponSection 
+  orderTotal={trek?.numericPrice * formData.totalParticipants}
+  onApplyCoupon={handleApplyCoupon}
+  theme={{ 
+    mainColor: theme.primary,
+    hoverColor: theme.primaryDark,
+    gradientLight: `linear-gradient(135deg, ${theme.peach}, ${theme.cream})`,
+    textColor:'#212223',
+    inputBackground: theme.white,
+    inputBorder: theme.mediumGray,
+    inputText: '#111827',
+    placeholderColor: '#4a4949'
+  }}
+/>            
+             <PriceSummary
+  style={{ 
+    background: `linear-gradient(135deg, rgba(255, 87, 34, 0.06), rgba(255, 152, 0, 0.04))`,
+    borderColor: theme.primary,
+    padding: '1.5rem',          // ✅ add space
+    borderRadius: '16px',
+    marginTop: '1rem',
+    minHeight: '325px'          // ✅ fix height issue
+  }}
+>        
                 <PriceItem>
-                  <span>Trek Fee</span>
-                  <span>₹{trek?.numericPrice} x {formData.participants}</span>
+                  <span>Trek Fee (per person)</span>
+                  <span>₹{trek?.numericPrice}</span>
                 </PriceItem>
                 
-                {/* Discount row - only show if coupon is applied */}
+                <PriceItem>
+                  <span>Number of Participants</span>
+                  <span>× {formData.totalParticipants}</span>
+                </PriceItem>
+                
+                <PriceItem>
+                  <span>Subtotal</span>
+                  <span>₹{(trek?.numericPrice * formData.totalParticipants).toFixed(2)}</span>
+                </PriceItem>
+                
                 {activeCoupon && (
-                  <PriceItem style={{ color: 'green' }}>
+                  <PriceItem style={{ color: '#059669' }}>
                     <span>Discount ({activeCoupon.code})</span>
                     <span>-₹{discountAmount.toFixed(2)}</span>
                   </PriceItem>
                 )}
                 
-                <PriceTotal>
+                <PriceTotal style={{ }}>
                   <span>Total</span>
                   <span>₹{calculateTotalPrice()}</span>
                 </PriceTotal>
               </PriceSummary>
-                {/* Payment Status Messages */}
+
               {paymentError && (
                 <ErrorMessage>
                   <FiAlertCircle size={20} />
@@ -2226,12 +4144,14 @@ const BookingModal = ({ isOpen, onClose, trek, onBookingSuccess }) => {
               {paymentSuccess && (
                 <SuccessMessage>
                   <FiCheck size={20} />
-                  Payment successful! Your booking is confirmed.
-                  {activeCoupon && (
-                    <div style={{ marginTop: '10px', fontSize: '0.9em' }}>
-                      Coupon applied: {activeCoupon.code} (Saved: ₹{discountAmount.toFixed(2)})
-                    </div>
-                  )}
+                  <div>
+                    Payment successful! Your booking is confirmed.
+                    {activeCoupon && (
+                      <div style={{ marginTop: '10px', fontSize: '1.9em' }}>
+                        Coupon applied: {activeCoupon.code} (Saved: ₹{discountAmount.toFixed(2)})
+                      </div>
+                    )}
+                  </div>
                 </SuccessMessage>
               )}
             </>

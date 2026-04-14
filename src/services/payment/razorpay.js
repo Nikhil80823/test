@@ -67,48 +67,50 @@ export const createRazorpayOrder = async (orderData) => {
   try {
     console.log('Creating booking record for payment:', orderData);
     
-    // Create a booking record in Firestore first
     const bookingsRef = collection(db, 'bookings');
     
-    // DEBUG: Log the incoming orderData to check if contactNumber is present
-    console.log('📞 Order data received for booking:', {
+    // DEBUG: Log incoming data
+    console.log('📞 Order data received:', {
       contactNumber: orderData.contactNumber,
-      phoneNumber: orderData.phoneNumber,
-      phone: orderData.phone,
-      name: orderData.name,
-      email: orderData.email,
-      allKeys: Object.keys(orderData)
+      participants: orderData.participants,
+      totalParticipants: orderData.totalParticipants,
+      primaryBooker: orderData.primaryBooker
     });
     
-    // Sanitize the data to ensure no undefined values are sent to Firestore
+    // Sanitize the data
     const sanitizedOrderData = Object.keys(orderData).reduce((acc, key) => {
-      // Only include defined values
       if (orderData[key] !== undefined && orderData[key] !== null) {
         acc[key] = orderData[key];
       }
       return acc;
     }, {});
     
-    // Make sure all required fields have values
+    // ✅ NEW: Ensure participants array is preserved
     const requiredFields = {
       userId: sanitizedOrderData.userId || 'anonymous',
       trekName: sanitizedOrderData.trekName || 'Unknown Trek',
       amount: sanitizedOrderData.amount || 0,
       currency: sanitizedOrderData.currency || 'INR',
-      participants: sanitizedOrderData.participants || 1,
-      // Ensure contact number is preserved if provided
+      
+      // ✅ NEW: Participant fields
+      participants: sanitizedOrderData.participants || [],
+      totalParticipants: sanitizedOrderData.totalParticipants || 1,
+      primaryBooker: sanitizedOrderData.primaryBooker || {},
+      
+      // Preserve all other fields
       ...(sanitizedOrderData.contactNumber && { contactNumber: sanitizedOrderData.contactNumber }),
       ...(sanitizedOrderData.phoneNumber && { phoneNumber: sanitizedOrderData.phoneNumber }),
       ...(sanitizedOrderData.phone && { phone: sanitizedOrderData.phone }),
-      // Also preserve other important user details
       ...(sanitizedOrderData.name && { name: sanitizedOrderData.name }),
       ...(sanitizedOrderData.email && { email: sanitizedOrderData.email }),
       ...(sanitizedOrderData.startDate && { startDate: sanitizedOrderData.startDate }),
       ...(sanitizedOrderData.specialRequests && { specialRequests: sanitizedOrderData.specialRequests }),
+      ...(sanitizedOrderData.pricePerPerson && { pricePerPerson: sanitizedOrderData.pricePerPerson }),
+      ...(sanitizedOrderData.subtotal && { subtotal: sanitizedOrderData.subtotal }),
+      ...(sanitizedOrderData.discount && { discount: sanitizedOrderData.discount }),
+      ...(sanitizedOrderData.coupon && { coupon: sanitizedOrderData.coupon }),
     };
     
-    // Create a booking record without a Razorpay order ID
-    // We're not using pre-creating orders in this flow
     const bookingData = {
       ...sanitizedOrderData,
       ...requiredFields,
@@ -118,30 +120,27 @@ export const createRazorpayOrder = async (orderData) => {
       updatedAt: serverTimestamp()
     };
     
-    // DEBUG: Log what's actually being saved to Firestore
-    console.log('📞 Booking data being saved:', {
-      contactNumber: bookingData.contactNumber,
-      phoneNumber: bookingData.phoneNumber,
-      phone: bookingData.phone,
-      name: bookingData.name,
-      email: bookingData.email,
-      allFields: Object.keys(bookingData)
+    // DEBUG: Log what's being saved
+    console.log('📞 Booking data being saved to Firestore:', {
+      totalParticipants: bookingData.totalParticipants,
+      participantsCount: bookingData.participants?.length,
+      primaryBooker: bookingData.primaryBooker?.name,
+      allParticipantNames: bookingData.participants?.map(p => p.name)
     });
     
     const bookingDoc = await addDoc(bookingsRef, bookingData);
-    console.log('Booking created with ID:', bookingDoc.id);
+    console.log('✅ Booking created with ID:', bookingDoc.id);
     
-    // Store the booking ID globally for redundancy
+    // Store the booking ID globally
     window.lastRazorpayBookingId = bookingDoc.id;
     
-    // Return the booking information
     return {
       bookingId: bookingDoc.id,
       ...bookingData,
-      amount: orderData.amount * 100, // Convert to smallest currency unit (paise)
+      amount: orderData.amount * 100, // Convert to paise
     };
   } catch (error) {
-    console.error('Error creating Razorpay order:', error);
+    console.error('❌ Error creating Razorpay order:', error);
     throw new Error('Failed to create order');
   }
 };

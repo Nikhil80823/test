@@ -1,4 +1,4 @@
-// TrekDetails.jsx - Refactored with modular components
+// TrekDetails.jsx - Final merged version
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styled, { createGlobalStyle, keyframes } from "styled-components";
@@ -32,9 +32,7 @@ import PhotoGallery from "./TrekPage/PhotoGallery";
 import GalleryModal from "./TrekPage/GalleryModal";
 import ReviewsSection from "./TrekPage/ReviewsSection";
 import WhatsAppButton from "./TrekPage/WhatsAppButton";
-import BookingModal from "./BookingModal";
-import SectionNavigation from "./TrekPage/SectionNavigation";
-
+// ✅ NO BookingModal import — we navigate to BookingPage instead
 
 // ============================================================
 // DESIGN TOKENS
@@ -52,10 +50,6 @@ const tokens = {
   radius: { lg: "16px", xl: "20px" },
   transition: { base: "all 0.25s ease" },
 };
-
-
-
-
 
 // ============================================================
 // GLOBAL STYLES
@@ -228,13 +222,11 @@ const SectionNavScroller = styled.div`
     display: none;
   }
 
-  /* Add scroll snap for better mobile UX */
   @media (max-width: 768px) {
     scroll-snap-type: x proximity;
     scroll-padding-left: 1rem;
   }
 
-  /* Fade out edges effect for better visual indication of scrollable content */
   position: relative;
   
   &::after {
@@ -306,26 +298,22 @@ const NavItem = styled.button`
     transform: scaleX(1);
   }
 
-  /* Tablet styles */
   @media (max-width: 1024px) {
     padding: 1.125rem 1.25rem;
     font-size: 0.8125rem;
   }
 
-  /* Mobile styles */
   @media (max-width: 768px) {
     padding: 1rem 1rem;
     font-size: 0.75rem;
     scroll-snap-align: start;
     
-    /* Make active item more prominent on mobile */
     ${({ $active }) => $active && `
       background: rgba(249, 115, 22, 0.08);
       border-radius: 8px 8px 0 0;
     `}
   }
 
-  /* Extra small mobile */
   @media (max-width: 480px) {
     padding: 0.875rem 0.875rem;
     font-size: 0.7rem;
@@ -355,8 +343,74 @@ const ScrollIndicator = styled.div`
 
 // ============================================================
 // MOBILE BOOKING BAR
+// ============================================================
+const MobileBar = styled(motion.div)`
+  display: none;
 
+  @media (max-width: 900px) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(249, 115, 22, 0.3);
+    padding: 1rem 1.25rem;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+  }
+`;
 
+const MobilePrice = styled.div`
+  font-family: "Sora", sans-serif;
+  font-size: 1.4rem;
+  color: ${tokens.colors.primary};
+  line-height: 1;
+
+  sub {
+    font-size: 0.75rem;
+    color: ${tokens.colors.textMuted};
+  }
+`;
+
+const MobileLabel = styled.div`
+  font-size: 0.72rem;
+  color: ${tokens.colors.textMuted};
+  margin-bottom: 0.25rem;
+`;
+
+const PrimaryBtn = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: ${tokens.radius.lg};
+  border: none;
+  background: linear-gradient(
+    135deg,
+    ${tokens.colors.primary} 0%,
+    ${tokens.colors.primaryDark} 100%
+  );
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: ${tokens.transition.base};
+  box-shadow: 0 8px 25px rgba(249, 115, 22, 0.35);
+  white-space: nowrap;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(249, 115, 22, 0.5);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
 
 // ============================================================
 // LOADING & ERROR STATES
@@ -472,67 +526,26 @@ function getNumericPrice(price) {
 
 function generateItinerary(days, title) {
   const activityPool = [
-    {
-      act: "Scenic hike through alpine meadows",
-      duration: "5–6 hrs",
-      elevation: "+600m",
-    },
-    {
-      act: "Trek across suspension bridges",
-      duration: "4–5 hrs",
-      elevation: "+400m",
-    },
-    {
-      act: "Reach panoramic viewpoints",
-      duration: "6–7 hrs",
-      elevation: "+800m",
-    },
-    {
-      act: "Explore ancient mountain villages",
-      duration: "3–4 hrs",
-      elevation: "+200m",
-    },
-    {
-      act: "Cross glacial streams and ridgelines",
-      duration: "5–6 hrs",
-      elevation: "+500m",
-    },
-    {
-      act: "Camp beside crystal alpine lakes",
-      duration: "4 hrs",
-      elevation: "+300m",
-    },
-    {
-      act: "Traverse dense rhododendron forests",
-      duration: "4–5 hrs",
-      elevation: "+350m",
-    },
-    {
-      act: "Final descent through valley floors",
-      duration: "4–5 hrs",
-      elevation: "-800m",
-    },
+    { act: "Scenic hike through alpine meadows", duration: "5–6 hrs", elevation: "+600m" },
+    { act: "Trek across suspension bridges", duration: "4–5 hrs", elevation: "+400m" },
+    { act: "Reach panoramic viewpoints", duration: "6–7 hrs", elevation: "+800m" },
+    { act: "Explore ancient mountain villages", duration: "3–4 hrs", elevation: "+200m" },
+    { act: "Cross glacial streams and ridgelines", duration: "5–6 hrs", elevation: "+500m" },
+    { act: "Camp beside crystal alpine lakes", duration: "4 hrs", elevation: "+300m" },
+    { act: "Traverse dense rhododendron forests", duration: "4–5 hrs", elevation: "+350m" },
+    { act: "Final descent through valley floors", duration: "4–5 hrs", elevation: "-800m" },
   ];
   const dayTitles = [
-    "Arrival & acclimatisation",
-    "Into the high country",
-    "Ridge traverse",
-    "Valley crossing",
-    "High camp push",
-    "Summit approach",
-    "Rest & exploration day",
-    "Descent begins",
-    "Return to civilization",
-    "Departure day",
+    "Arrival & acclimatisation", "Into the high country", "Ridge traverse",
+    "Valley crossing", "High camp push", "Summit approach",
+    "Rest & exploration day", "Descent begins", "Return to civilization", "Departure day",
   ];
   return Array.from({ length: days }, (_, i) => {
     const a = activityPool[i % activityPool.length];
     return {
       day: i + 1,
       title: dayTitles[i] || `Day ${i + 1} — ${title}`,
-      description:
-        a.act +
-        ". Today's journey takes you through breathtaking scenery with opportunities for wildlife spotting and photography.",
+      description: a.act + ". Today's journey takes you through breathtaking scenery with opportunities for wildlife spotting and photography.",
       duration: a.duration,
       elevation: a.elevation,
     };
@@ -578,34 +591,13 @@ function getExcluded() {
 
 function generateReviews(title) {
   const pool = [
-    {
-      name: "Aryan S.",
-      text: `${title} was the most breathtaking experience of my life. Every day brought new landscapes that left me speechless.`,
-    },
-    {
-      name: "Priya M.",
-      text: "The guides were incredibly knowledgeable and kept us safe throughout. Organisation was flawless.",
-    },
-    {
-      name: "James T.",
-      text: "Challenging at moments but the views more than make up for it. Would highly recommend to any adventure lover.",
-    },
-    {
-      name: "Simran K.",
-      text: "The food was surprisingly amazing at altitude! Loved the camping under the stars.",
-    },
-    {
-      name: "David L.",
-      text: "Small group made it feel personal. The team genuinely cared about our experience. Unforgettable.",
-    },
+    { name: "Aryan S.", text: `${title} was the most breathtaking experience of my life. Every day brought new landscapes that left me speechless.` },
+    { name: "Priya M.", text: "The guides were incredibly knowledgeable and kept us safe throughout. Organisation was flawless." },
+    { name: "James T.", text: "Challenging at moments but the views more than make up for it. Would highly recommend to any adventure lover." },
+    { name: "Simran K.", text: "The food was surprisingly amazing at altitude! Loved the camping under the stars." },
+    { name: "David L.", text: "Small group made it feel personal. The team genuinely cared about our experience. Unforgettable." },
   ];
-  const dates = [
-    "2 weeks ago",
-    "1 month ago",
-    "3 months ago",
-    "5 months ago",
-    "2 months ago",
-  ];
+  const dates = ["2 weeks ago", "1 month ago", "3 months ago", "5 months ago", "2 months ago"];
   const ratings = [5, 5, 4, 5, 4];
   return pool.map((r, i) => ({
     id: `r-${i}`,
@@ -631,7 +623,6 @@ export default function TrekDetails() {
   // UI state
   const [navScrolled, setNavScrolled] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
@@ -642,7 +633,7 @@ export default function TrekDetails() {
 
   // Booking floating button
   const bookingCardRef = useRef(null);
-
+  const [showBookingFloating, setShowBookingFloating] = useState(false);
 
   // Section refs for navigation
   const sectionRefs = useRef({
@@ -676,18 +667,13 @@ export default function TrekDetails() {
   // ── Active section observer ──────────────────────────────
   useEffect(() => {
     const observers = [];
-    const options = {
-      rootMargin: "-160px 0px -50% 0px",
-      threshold: 0,
-    };
+    const options = { rootMargin: "-160px 0px -50% 0px", threshold: 0 };
 
     const callback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const sectionId = entry.target.getAttribute("data-section");
-          if (sectionId) {
-            setActiveSection(sectionId);
-          }
+          if (sectionId) setActiveSection(sectionId);
         }
       });
     };
@@ -701,12 +687,22 @@ export default function TrekDetails() {
       }
     });
 
-    return () => {
-      observers.forEach((observer) => observer.disconnect());
-    };
+    return () => { observers.forEach((observer) => observer.disconnect()); };
   }, [trek]);
 
+  // ── Booking card visibility ──────────────────────────────
+  useEffect(() => {
+    const el = bookingCardRef.current;
+    if (!el) return;
 
+    const observer = new IntersectionObserver(
+      ([entry]) => { setShowBookingFloating(!entry.isIntersecting); },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [trek]);
 
   // ── Section nav scroll indicator ─────────────────────────
   useEffect(() => {
@@ -717,7 +713,6 @@ export default function TrekDetails() {
       const { scrollWidth, clientWidth, scrollLeft } = scroller;
       const canScroll = scrollWidth > clientWidth;
       const isAtEnd = scrollLeft + clientWidth >= scrollWidth - 10;
-      
       setShowScrollIndicator(canScroll && !isAtEnd);
     };
 
@@ -741,16 +736,9 @@ export default function TrekDetails() {
       const scrollerRect = scroller.getBoundingClientRect();
       const buttonRect = activeButton.getBoundingClientRect();
       
-      // Check if button is not fully visible
-      if (
-        buttonRect.left < scrollerRect.left ||
-        buttonRect.right > scrollerRect.right
-      ) {
+      if (buttonRect.left < scrollerRect.left || buttonRect.right > scrollerRect.right) {
         const scrollLeft = activeButton.offsetLeft - scroller.offsetWidth / 2 + activeButton.offsetWidth / 2;
-        scroller.scrollTo({
-          left: scrollLeft,
-          behavior: 'smooth'
-        });
+        scroller.scrollTo({ left: scrollLeft, behavior: 'smooth' });
       }
     }
   }, [activeSection]);
@@ -762,19 +750,13 @@ export default function TrekDetails() {
       ? trek.imageUrls.filter(Boolean)
       : [trek.image].filter(Boolean);
 
-    if (!urls.length) {
-      setImageLoaded(true);
-      return;
-    }
+    if (!urls.length) { setImageLoaded(true); return; }
 
     const img = new Image();
     img.src = getValidImageUrl(urls[0]);
     img.onload = () => setImageLoaded(true);
     const t = setTimeout(() => setImageLoaded(true), 3000);
-    urls.slice(1).forEach((u) => {
-      const i = new Image();
-      i.src = getValidImageUrl(u);
-    });
+    urls.slice(1).forEach((u) => { const i = new Image(); i.src = getValidImageUrl(u); });
     return () => clearTimeout(t);
   }, [trek]);
 
@@ -783,9 +765,7 @@ export default function TrekDetails() {
     let mounted = true;
 
     const fallback = () => {
-      const name = id
-        .replace(/-/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const name = id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       return {
         id,
         title: name,
@@ -829,9 +809,7 @@ export default function TrekDetails() {
                 !data &&
                 (d.id === id ||
                   ddata.id === id ||
-                  (ddata.title &&
-                    ddata.title.toLowerCase().replace(/\s+/g, "-") ===
-                      id.toLowerCase()))
+                  (ddata.title && ddata.title.toLowerCase().replace(/\s+/g, "-") === id.toLowerCase()))
               ) {
                 data = { id: d.id, ...ddata };
               }
@@ -842,10 +820,7 @@ export default function TrekDetails() {
         if (!data) data = fallback();
 
         try {
-          const rq = query(
-            collection(db, "reviews"),
-            where("trekId", "==", id),
-          );
+          const rq = query(collection(db, "reviews"), where("trekId", "==", id));
           const rs = await getDocs(rq);
           data.reviewsData = rs.empty
             ? generateReviews(data.title)
@@ -882,42 +857,21 @@ export default function TrekDetails() {
   }, [id, loading]);
 
   // ── Handlers ─────────────────────────────────────────────
-  const handleBook = () => {
-    if (!authUser)
-      navigate("/login", { state: { redirectTo: `/treks/${id}` } });
-    else setIsBookingOpen(true);
-  };
 
-  const handleBookingSuccess = async (bookingData) => {
-    if (!authUser || !trek) return;
-    try {
-      const name =
-        trek.title ||
-        id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-      const saved = await saveBooking({
-        ...bookingData,
-        userId: authUser.uid,
-        userEmail: authUser.email,
-        userDisplayName: authUser.displayName,
-        trekId: trek.id || id,
-        trekName: name,
-        trekTitle: name,
-        trekImage: getValidImageUrl(trek.image),
-        trekDays: trek.days || 1,
-        trekPrice: formatPrice(trek.price),
-        trekLocation: trek.location || "Mountain Region",
-        trekDifficulty: trek.difficulty,
-        trekCountry: trek.country,
-        trekSeason: trek.season,
-        trekCapacity: trek.capacity,
-        trekAltitude: trek.altitude,
-        bookingTimestamp: new Date().toISOString(),
-        bookingPlatform: "web",
-      });
-      navigate(`/booking-confirmation/${saved.id}`);
-    } catch (e) {
-      console.error(e);
+  // ✅ CORRECT: navigates to BookingPage instead of opening modal
+  const handleBook = () => {
+    if (!authUser) {
+      navigate("/login", { state: { redirectTo: `/trek/${id}` } });
+      return;
     }
+    navigate(`/booking/${trek.id || id}`, {
+      state: {
+        trek: {
+          ...trek,
+          numericPrice: getNumericPrice(trek?.price),
+        },
+      },
+    });
   };
 
   const handleLike = async () => {
@@ -926,12 +880,7 @@ export default function TrekDetails() {
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator
-        .share({
-          title: trek?.title || "Trek",
-          url: window.location.href,
-        })
-        .catch(console.error);
+      navigator.share({ title: trek?.title || "Trek", url: window.location.href }).catch(console.error);
     } else {
       navigator.clipboard.writeText(window.location.href);
       alert("Link copied to clipboard!");
@@ -995,7 +944,6 @@ export default function TrekDetails() {
   );
   const waHref = `https://wa.me/?text=${waMsg}`;
 
-  // Navigation sections
   const sections = [
     { id: "overview", label: "Overview" },
     { id: "highlights", label: "Highlights" },
@@ -1014,18 +962,8 @@ export default function TrekDetails() {
         <LoadingWrapper>
           <LoadingSpinner />
           <LoadingTitle>Loading your adventure…</LoadingTitle>
-          <LoadingSubtitle>
-            Gathering trek details and highlights
-          </LoadingSubtitle>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.625rem",
-              width: 280,
-              marginTop: "0.5rem",
-            }}
-          >
+          <LoadingSubtitle>Gathering trek details and highlights</LoadingSubtitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", width: 280, marginTop: "0.5rem" }}>
             <SkeletonBar $h="12px" $w="80%" />
             <SkeletonBar $h="12px" $w="60%" />
             <SkeletonBar $h="12px" $w="70%" />
@@ -1039,13 +977,7 @@ export default function TrekDetails() {
     return (
       <FullCenter>
         <ErrorWrapper>
-          <h2
-            style={{
-              color: tokens.colors.textPrimary,
-              fontSize: "1.375rem",
-              fontWeight: 700,
-            }}
-          >
+          <h2 style={{ color: tokens.colors.textPrimary, fontSize: "1.375rem", fontWeight: 700 }}>
             Trek Not Found
           </h2>
           <p style={{ color: tokens.colors.textMuted, fontSize: "0.9rem" }}>
@@ -1058,200 +990,195 @@ export default function TrekDetails() {
   }
 
   // ── Render ────────────────────────────────────────────────
- // ── Render ────────────────────────────────────────────────
-return (
-  <>
-    <GlobalStyles />
+  return (
+    <>
+      <GlobalStyles />
 
-    <PageWrapper>
-      {/* HEADER */}
-      <Header
-        title={title}
-        scrolled={navScrolled}
-        isLiked={isLiked}
-        onLike={handleLike}
-        onShare={handleShare}
-        onBook={handleBook}
-      />
-
-      {/* HERO */}
-      <Hero
-        title={title}
-        description={description}
-        image={image}
-        location={trekLocation}
-        country={country}
-        difficulty={difficulty}
-        days={days}
-        altitude={altitude}
-        rating={rating}
-        reviewCount={reviewCount}
-        capacity={capacity}
-        price={price}
-        imageLoaded={imageLoaded}
-        onImageLoad={() => setImageLoaded(true)}
-        onBook={handleBook}
-        onBookNow={handleBook}
-        onViewItinerary={handleViewItinerary}
-        organizerVerified={trek?.organizerVerified}
-      />
-
-      {/* STATS BAR */}
-      <Stats
-        days={days}
-        altitude={altitude}
-        difficulty={difficulty}
-        capacity={capacity}
-        rating={rating}
-        season={season}
-      />
-
-      {/* SECTION NAVIGATION */}
-      <SectionNavigation
-          sections={sections}
-          activeSection={activeSection}
-          onNavigate={scrollToSection}
-          scrolled={navScrolled}
-        />
-
-      {/* MAIN CONTENT */}
-      <MainLayout>
-        <Container>
-          <ContentGrid>
-            {/* LEFT COLUMN */}
-            <MainCol>
-              <div 
-                ref={(el) => (sectionRefs.current.overview = el)}
-                data-section="overview"
-              >
-                <Description
-                  description={description}
-                  detailedDescription={detailedDesc}
-                />
-              </div>
-
-              <div 
-                ref={(el) => (sectionRefs.current.highlights = el)}
-                data-section="highlights"
-              >
-                <Highlights highlights={highlights} />
-              </div>
-
-              <div 
-                ref={(el) => (sectionRefs.current.itinerary = el)}
-                data-section="itinerary"
-              >
-                <Itinerary itinerary={itinerary} />
-              </div>
-
-              <div 
-                ref={(el) => (sectionRefs.current.besttime = el)}
-                data-section="besttime"
-              >
-                <BestTimeToVisit
-                  season={season}
-                  availableMonths={availableMonths}
-                />
-              </div>
-            </MainCol>
-
-            {/* RIGHT COLUMN */}
-            <SideCol>
-              <BookingCard
-                cardRef={bookingCardRef}
-                price={price}
-                rating={rating}
-                reviewCount={reviewCount}
-                days={days}
-                location={trekLocation}
-                difficulty={difficulty}
-                altitude={altitude}
-                capacity={capacity}
-                season={season}
-                country={country}
-                onBook={handleBook}
-                organizerName={organizerName}
-                whatsappLink={waHref}
-              />
-            </SideCol>
-          </ContentGrid>
-        </Container>
-
-        {/* ✅ FULL-WIDTH ORGANIZER SECTION (OUTSIDE GRID) */}
-        <Container>
-          <div 
-            ref={(el) => (sectionRefs.current.organizer = el)}
-            data-section="organizer"
-          >
-            <MeetOrganizer
-              organizerName={organizerName}
-              organizerId={organizerId}
-              organizerVerified={trek?.organizerVerified}
-              organizerTrekCount={trek?.organizerTrekCount}
-              organizerExperience={trek?.organizerExperience}
-              organizerDescription={trek?.organizerDescription}
-            />
-          </div>
-        </Container>
-
-        <Container>
-          <div 
-            ref={(el) => (sectionRefs.current.included = el)}
-            data-section="included"
-          >
-            <IncludedExcluded included={included} excluded={excluded} />
-          </div>
-        </Container>
-      </MainLayout>
-
-      {/* PHOTO GALLERY */}
-      <div 
-        ref={(el) => (sectionRefs.current.gallery = el)}
-        data-section="gallery"
-      >
-        <PhotoGallery
-          images={images}
+      <PageWrapper>
+        {/* HEADER */}
+        <Header
           title={title}
-          onImageClick={(idx) => {
-            setGalleryIdx(idx);
-            setGalleryOpen(true);
-          }}
+          scrolled={navScrolled}
+          isLiked={isLiked}
+          onLike={handleLike}
+          onShare={handleShare}
+          onBook={handleBook}
         />
-      </div>
 
-      {/* REVIEWS */}
-      <Container>
-        <div 
-          ref={(el) => (sectionRefs.current.reviews = el)}
-          data-section="reviews"
-        >
-          <ReviewsSection reviews={reviews} rating={rating} />
+        {/* HERO */}
+        <Hero
+          title={title}
+          description={description}
+          image={image}
+          location={trekLocation}
+          country={country}
+          difficulty={difficulty}
+          days={days}
+          altitude={altitude}
+          rating={rating}
+          reviewCount={reviewCount}
+          capacity={capacity}
+          price={price}
+          imageLoaded={imageLoaded}
+          onImageLoad={() => setImageLoaded(true)}
+          onBook={handleBook}
+          onBookNow={handleBook}
+          onViewItinerary={handleViewItinerary}
+          organizerVerified={trek?.organizerVerified}
+        />
+
+        {/* STATS BAR */}
+        <Stats
+          days={days}
+          altitude={altitude}
+          difficulty={difficulty}
+          capacity={capacity}
+          rating={rating}
+          season={season}
+        />
+
+        {/* SECTION NAVIGATION */}
+        <SectionNavWrapper className={navScrolled ? 'scrolled' : ''}>
+          <SectionNavContainer>
+            <SectionNavScroller ref={sectionNavScrollerRef}>
+              <SectionNav>
+                {sections.map((section) => (
+                  <NavItem
+                    key={section.id}
+                    data-section-nav={section.id}
+                    $active={activeSection === section.id}
+                    onClick={() => scrollToSection(section.id)}
+                  >
+                    {section.label}
+                  </NavItem>
+                ))}
+              </SectionNav>
+            </SectionNavScroller>
+            {showScrollIndicator && (
+              <ScrollIndicator>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <span>Scroll for more</span>
+              </ScrollIndicator>
+            )}
+          </SectionNavContainer>
+        </SectionNavWrapper>
+
+        {/* MAIN CONTENT */}
+        <MainLayout>
+          <Container>
+            <ContentGrid>
+              {/* LEFT COLUMN */}
+              <MainCol>
+                <div ref={(el) => (sectionRefs.current.overview = el)} data-section="overview">
+                  <Description description={description} detailedDescription={detailedDesc} />
+                </div>
+
+                <div ref={(el) => (sectionRefs.current.highlights = el)} data-section="highlights">
+                  <Highlights highlights={highlights} />
+                </div>
+
+                <div ref={(el) => (sectionRefs.current.itinerary = el)} data-section="itinerary">
+                  <Itinerary itinerary={itinerary} />
+                </div>
+
+                <div ref={(el) => (sectionRefs.current.besttime = el)} data-section="besttime">
+                  <BestTimeToVisit season={season} availableMonths={availableMonths} />
+                </div>
+              </MainCol>
+
+              {/* RIGHT COLUMN */}
+              <SideCol>
+                <BookingCard
+                  cardRef={bookingCardRef}
+                  price={price}
+                  rating={rating}
+                  reviewCount={reviewCount}
+                  days={days}
+                  location={trekLocation}
+                  difficulty={difficulty}
+                  altitude={altitude}
+                  capacity={capacity}
+                  season={season}
+                  country={country}
+                  onBook={handleBook}
+                  organizerName={organizerName}
+                  whatsappLink={waHref}
+                />
+              </SideCol>
+            </ContentGrid>
+          </Container>
+
+          {/* ORGANIZER SECTION */}
+          <Container>
+            <div ref={(el) => (sectionRefs.current.organizer = el)} data-section="organizer">
+              <MeetOrganizer
+                organizerName={organizerName}
+                organizerId={organizerId}
+                organizerVerified={trek?.organizerVerified}
+                organizerTrekCount={trek?.organizerTrekCount}
+                organizerExperience={trek?.organizerExperience}
+                organizerDescription={trek?.organizerDescription}
+              />
+            </div>
+          </Container>
+
+          <Container>
+            <div ref={(el) => (sectionRefs.current.included = el)} data-section="included">
+              <IncludedExcluded included={included} excluded={excluded} />
+            </div>
+          </Container>
+        </MainLayout>
+
+        {/* PHOTO GALLERY */}
+        <div ref={(el) => (sectionRefs.current.gallery = el)} data-section="gallery">
+          <PhotoGallery
+            images={images}
+            title={title}
+            onImageClick={(idx) => {
+              setGalleryIdx(idx);
+              setGalleryOpen(true);
+            }}
+          />
         </div>
-      </Container>
 
-      {/* GALLERY MODAL */}
-      <GalleryModal
-        isOpen={galleryOpen}
-        images={images}
-        currentIndex={galleryIdx}
-        onClose={() => setGalleryOpen(false)}
-        onNavigate={handleGalleryNavigate}
-        title={title}
-      />
+        {/* REVIEWS */}
+        <Container>
+          <div ref={(el) => (sectionRefs.current.reviews = el)} data-section="reviews">
+            <ReviewsSection reviews={reviews} rating={rating} />
+          </div>
+        </Container>
 
-      {/* BOOKING MODAL */}
-      {isBookingOpen && (
-        <BookingModal
-          isOpen={isBookingOpen}
-          onClose={() => setIsBookingOpen(false)}
-          trek={{ ...trek, numericPrice: getNumericPrice(trek?.price) }}
-          onBookingSuccess={handleBookingSuccess}
+        {/* MOBILE BOOKING BAR */}
+        <MobileBar
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+        >
+          <div>
+            <MobileLabel>Starting from</MobileLabel>
+            <MobilePrice>
+              {price}
+              <sub>/ person</sub>
+            </MobilePrice>
+          </div>
+          <PrimaryBtn onClick={handleBook}>Book Now →</PrimaryBtn>
+        </MobileBar>
+
+        {/* GALLERY MODAL */}
+        <GalleryModal
+          isOpen={galleryOpen}
+          images={images}
+          currentIndex={galleryIdx}
+          onClose={() => setGalleryOpen(false)}
+          onNavigate={handleGalleryNavigate}
+          title={title}
         />
-      )}
 
-      {/* WHATSAPP BUTTON */}
-      <WhatsAppButton href={waHref} />
-    </PageWrapper>
-  </>
-);
+        {/* WHATSAPP BUTTON */}
+        <WhatsAppButton href={waHref} />
+      </PageWrapper>
+    </>
+  );
 }

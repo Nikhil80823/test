@@ -116,7 +116,7 @@ service cloud.firestore {
         (request.auth.token.email in ['luckychelani950@gmail.com', 'test@example.com', 'youremail@example.com']);
     }
     
-    // Bookings collection
+    // Bookings collection - ORIGINAL RULES
     match /bookings/{bookingId} {
       // Allow authenticated users to create bookings
       allow create: if request.auth != null;

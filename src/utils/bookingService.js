@@ -3,8 +3,8 @@ import { collection, addDoc, doc, updateDoc, getDoc, serverTimestamp, query, whe
 import { processPayment, handlePaymentSuccess, handlePaymentFailure } from '../services/payment';
 
 /**
- * Save a booking to Firestore
- * @param {Object} bookingData - Booking details
+ * Save a booking to Firestore with full participant details
+ * @param {Object} bookingData - Booking details including participants array
  * @returns {Promise<Object>} - Booking document with ID
  */
 export const saveBooking = async (bookingData) => {
@@ -53,18 +53,49 @@ export const saveBooking = async (bookingData) => {
       console.log(`Replaced "Test Trek" placeholder with actual name: ${correctedName} for trek ID: ${cleanedBookingData.trekId}`);
     }
 
+    // ✅ NEW: Validate participants array
+    if (!cleanedBookingData.participants || !Array.isArray(cleanedBookingData.participants)) {
+      console.warn('No participants array found, creating from legacy data');
+      cleanedBookingData.participants = [{
+        participantId: 'p1',
+        name: cleanedBookingData.name || cleanedBookingData.userName || 'Unknown',
+        email: cleanedBookingData.email || cleanedBookingData.userEmail || '',
+        age: cleanedBookingData.age || '',
+        emergencyContact: cleanedBookingData.emergencyContact || cleanedBookingData.contactNumber || '',
+        isPrimaryBooker: true
+      }];
+    }
+
+    // ✅ NEW: Ensure totalParticipants matches participants array length
+    if (cleanedBookingData.participants && Array.isArray(cleanedBookingData.participants)) {
+      cleanedBookingData.totalParticipants = cleanedBookingData.participants.length;
+    }
+
+    // ✅ NEW: Ensure primaryBooker info is set
+    if (!cleanedBookingData.primaryBooker) {
+      cleanedBookingData.primaryBooker = {
+        uid: user.uid,
+        name: cleanedBookingData.name || cleanedBookingData.userName || user.displayName || '',
+        email: cleanedBookingData.email || cleanedBookingData.userEmail || user.email || '',
+        contactNumber: cleanedBookingData.contactNumber || cleanedBookingData.phoneNumber || ''
+      };
+    }
+
     // Create booking in Firestore
     const bookingsRef = collection(db, 'bookings');
     const bookingDoc = await addDoc(bookingsRef, {
       ...cleanedBookingData,
       userId: user.uid,
       userEmail: user.email,
-      status: 'confirmed', // Change from 'pending' to 'confirmed' since payment is already successful
+      status: 'confirmed',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
-    console.log(`Booking saved with ID: ${bookingDoc.id}, Trek Name: ${cleanedBookingData.trekName}, Trek ID: ${cleanedBookingData.trekId}`);
+    console.log(`✅ Booking saved with ID: ${bookingDoc.id}`);
+    console.log(`   Trek: ${cleanedBookingData.trekName}`);
+    console.log(`   Participants: ${cleanedBookingData.totalParticipants}`);
+    console.log(`   Primary Booker: ${cleanedBookingData.primaryBooker.name}`);
 
     return {
       id: bookingDoc.id,

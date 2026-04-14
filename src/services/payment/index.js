@@ -36,16 +36,23 @@ export const processPayment = async (trekData, bookingDetails) => {
     // Validate key existence
     if (!process.env.REACT_APP_RAZORPAY_KEY_ID) {
       console.error('❌ Razorpay Key ID is missing');
-      throw new Error('Payment configuration error: API key not found');
+      throw new Error('Payment configuration error: API key not found. Please check your .env file.');
     }
 
     // Get current user (or allow anonymous for testing)
     const user = auth.currentUser;
     const userId = user ? user.uid : 'anonymous-user';
     
-    console.log('👤 User:', user ? `${user.displayName || user.email} (${user.uid})` : 'Anonymous');    // Create order data with proper validation and preserve original field names
+    console.log('👤 User:', user ? `${user.displayName || user.email} (${user.uid})` : 'Anonymous');
+    
+    // Create order data with proper validation and preserve all participant data
     const orderData = {
       userId: userId,
+      
+      // ✅ Include participant data
+      primaryBooker: bookingDetails.primaryBooker || {},
+      participants: bookingDetails.participants || [],
+      totalParticipants: bookingDetails.totalParticipants || 1,
       
       // Include coupon data if available
       coupon: bookingDetails.coupon ? {
@@ -56,35 +63,44 @@ export const processPayment = async (trekData, bookingDetails) => {
       } : null,
       
       // User information - preserve original field names AND add alternatives
-      userEmail: user ? user.email : bookingDetails.email || 'anonymous@example.com',
-      email: bookingDetails.email || (user ? user.email : 'anonymous@example.com'),
+      userEmail: user ? user.email : (bookingDetails.primaryBooker?.email || bookingDetails.email || 'anonymous@example.com'),
+      email: bookingDetails.primaryBooker?.email || bookingDetails.email || (user ? user.email : 'anonymous@example.com'),
       
-      userName: user ? (user.displayName || bookingDetails.name || 'Guest User') : (bookingDetails.name || 'Guest User'),
-      name: bookingDetails.name || (user ? user.displayName : 'Guest User'),
+      userName: user ? (user.displayName || bookingDetails.primaryBooker?.name || bookingDetails.name || 'Guest User') : (bookingDetails.primaryBooker?.name || bookingDetails.name || 'Guest User'),
+      name: bookingDetails.primaryBooker?.name || bookingDetails.name || (user ? user.displayName : 'Guest User'),
       
-      contactNumber: bookingDetails.contactNumber || '',
-      phoneNumber: bookingDetails.contactNumber || '',
-      phone: bookingDetails.contactNumber || '',
+      contactNumber: bookingDetails.primaryBooker?.contactNumber || bookingDetails.contactNumber || '',
+      phoneNumber: bookingDetails.primaryBooker?.contactNumber || bookingDetails.contactNumber || '',
+      phone: bookingDetails.primaryBooker?.contactNumber || bookingDetails.contactNumber || '',
       
       // Trek information
-      trekId: trekData?.id || 'test-trek',
-      trekName: trekData?.name || 'Test Trek',
+      trekId: trekData?.id || 'unknown-trek',
+      trekName: trekData?.name || trekData?.title || 'Unknown Trek',
+      trekTitle: trekData?.title || trekData?.name || 'Unknown Trek',
+      trekLocation: trekData?.location || '',
+      trekDuration: trekData?.duration || '',
+      trekDifficulty: trekData?.difficulty || '',
+      trekImage: trekData?.image || trekData?.imageUrl || '',
       
-      // Booking details - preserve original field names
-      participants: bookingDetails?.participants || 1,
+      // Booking details
       startDate: bookingDetails?.startDate || new Date().toISOString().split('T')[0],
       specialRequests: bookingDetails?.specialRequests || '',
       
+      // Pricing
+      pricePerPerson: trekData?.numericPrice || 100,
+      subtotal: bookingDetails.subtotal || (trekData?.numericPrice || 100) * (bookingDetails?.totalParticipants || 1),
+      discount: bookingDetails.discount || 0,
+      
       // Calculate amount based on participants and apply discount if coupon is present
-      amount: bookingDetails.coupon ? 
+      amount: bookingDetails.totalAmount || (bookingDetails.coupon ? 
         parseInt(bookingDetails.coupon.finalAmount) :
-        parseInt((trekData?.numericPrice || 100) * (bookingDetails?.participants || 1)),
+        parseInt((trekData?.numericPrice || 100) * (bookingDetails?.totalParticipants || 1))),
       originalAmount: bookingDetails.coupon ?
         parseInt(bookingDetails.coupon.originalAmount) :
-        parseInt((trekData?.numericPrice || 100) * (bookingDetails?.participants || 1)),
-      totalAmount: bookingDetails.coupon ? 
+        parseInt((trekData?.numericPrice || 100) * (bookingDetails?.totalParticipants || 1)),
+      totalAmount: bookingDetails.totalAmount || (bookingDetails.coupon ? 
         parseInt(bookingDetails.coupon.finalAmount) :
-        parseInt((trekData?.numericPrice || 100) * (bookingDetails?.participants || 1)),
+        parseInt((trekData?.numericPrice || 100) * (bookingDetails?.totalParticipants || 1))),
       
       currency: 'INR',
       bookingDate: new Date().toISOString()
@@ -94,41 +110,42 @@ export const processPayment = async (trekData, bookingDetails) => {
     if (orderData.amount < 1) {
       console.warn('⚠️ Invalid amount, setting to minimum ₹100');
       orderData.amount = 100;
-    }    // Validate data before sending to Firestore
+    }
+    
+    // Validate data before sending to Firestore
     const { fixedData } = validateFirestoreData(orderData);
     
     console.log('💾 Creating order with data:', fixedData);
+    console.log('👥 Participants:', fixedData.participants);
+    console.log('📊 Total participants:', fixedData.totalParticipants);
     
     // Create a local booking record first
     const order = await createRazorpayOrder(fixedData);
     console.log('📝 Order created:', order);
-
-    // IMPORTANT: We're using a simpler approach without order_id for testing
-    // In production, you would create a real Razorpay order via their API
     
-    // Configure Razorpay options - WITHOUT order_id for testing
+    // Configure Razorpay options
     const options = {
       key: process.env.REACT_APP_RAZORPAY_KEY_ID,
       amount: parseInt(order.amount),
       currency: "INR",
       name: 'Trovia Treks',
-      description: `Booking for ${orderData.trekName}`,
-      // Removed order_id - using order flow without pre-created orders
+      description: `Booking for ${orderData.trekName} - ${orderData.totalParticipants} participant(s)`,
       notes: {
         bookingId: order.bookingId,
-        trekId: orderData.trekId
+        trekId: orderData.trekId,
+        totalParticipants: orderData.totalParticipants
       },
       prefill: {
         name: orderData.userName,
         email: orderData.userEmail,
-        contact: bookingDetails.contactNumber || ''
+        contact: orderData.contactNumber || ''
       },
       theme: {
         color: '#3399cc'
       }
     };
     
-    console.log('🚀 Initializing payment with options:', options);
+    console.log('🚀 Initializing Razorpay payment with options:', options);
     console.groupEnd();
 
     // Initialize payment
@@ -136,7 +153,7 @@ export const processPayment = async (trekData, bookingDetails) => {
 
     // Return the order details
     return {
-      orderId: order.id,
+      orderId: order.bookingId,
       amount: order.amount,
       success: true
     };
