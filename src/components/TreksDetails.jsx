@@ -36,6 +36,10 @@ import GalleryModal from "./TrekPage/GalleryModal";
 import ReviewsSection from "./TrekPage/ReviewsSection";
 import WhatsAppButton from "./TrekPage/WhatsAppButton";
 
+
+
+
+
 // ============================================================
 // GLOBAL STYLES
 // ============================================================
@@ -328,26 +332,6 @@ const ScrollIndicator = styled.div`
 
 // ============================================================
 // MOBILE BOOKING BAR
-// ============================================================
-const MobileBar = styled(motion.div)`
-  display: none;
-
-  @media (max-width: 900px) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 90;
-    background: rgba(18, 18, 18, 0.95);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(249, 115, 22, 0.3);
-    padding: 1rem 1.25rem;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
-  }
-`;
 
 const MobilePrice = styled.div`
   font-family: "Sora", sans-serif;
@@ -618,7 +602,7 @@ export default function TrekDetails() {
 
   // Booking floating button
   const bookingCardRef = useRef(null);
-  const [showBookingFloating, setShowBookingFloating] = useState(false);
+
 
   // Section refs for navigation
   const sectionRefs = useRef({
